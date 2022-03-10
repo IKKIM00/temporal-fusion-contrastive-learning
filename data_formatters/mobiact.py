@@ -50,7 +50,7 @@ class MobiactFormatter(BaseForamtter):
             num_classes.append(srs.nunique())
 
         self._cat_scalers = categorical_scalers
-        self.num_classes_per_cat_input = num_classes
+        self._num_classes_per_cat_input = num_classes
 
     def transform_inputs(self, df):
         output = df.copy()
