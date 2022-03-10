@@ -55,6 +55,7 @@ class StaticVector(nn.Module):
 
         self.input_size = int(params['input_size'])
         self.output_dim = int(params['output_dim'])
+        self.dropout = float(params['dropout'])
 
         self.static_embedding = StaticEmbedding(model_params)
         self.flatten = nn.Flatten()
