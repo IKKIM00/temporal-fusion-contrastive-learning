@@ -32,7 +32,7 @@ class BaseFormatter(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_model_configs(self):
+    def get_model_params(self):
         """define model configs
 
         :returns - Dictionaires of fixed params
@@ -45,9 +45,11 @@ class BaseFormatter(abc.ABC):
                 'output_dim': 128,
                 'dropout': 0.35,
                 'n_predicts': 12,
+                'feature_len': 24,
                 'num_epoch': 100,
                 'batch_size': 512,
-                'timesteps': 10
+                'timesteps': 10,
+                'num_classes': 2,
                 }
             aug_params = {
                 'jitter_scale_ration': 0.001,
