@@ -1,6 +1,7 @@
 import data_formatters.base
 import libs.utils as utils
 import sklearn.preprocessing
+import pandas as pd
 
 BaseForamtter = data_formatters.base.BaseFormatter
 DataTypes = data_formatters.base.DataTypes
@@ -22,7 +23,7 @@ class MobiactFormatter(BaseForamtter):
     def split_data(self, dataset_dir):
         print('Formatting train-valid-test static data splits')
 
-        person_info = dataset_dir + 'person_info.csv'
+        person_info = pd.read_csv(dataset_dir + 'person_info.csv', index_col=0)
         train = person_info.iloc[:50]
         valid = person_info.iloc[50: 57]
         test = person_info.iloc[57:]
