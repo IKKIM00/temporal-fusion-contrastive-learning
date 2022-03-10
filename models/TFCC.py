@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 from models.attention import Seq_Transformer
-from models.static import StaticVector, CombineFeatureAndStatic
 
 class TFCC(nn.Module):
     def __init__(self, model_params, device):
@@ -11,19 +10,19 @@ class TFCC(nn.Module):
         params = dict(model_params)
         self.output_dim = int(params['output_dim'])
         self.timestep = int(params['timestep'])
-        self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim'], self.output_dim) for i in range(self.timestep))])
+        self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim']), self.output_dim) for i in range(self.timestep)])
         self.lsoftmax = nn.LogSoftmax(dim=1)
         self.device = device
 
         self.projection_head = nn.Sequential(
-            nn.Linear(int(params['hidden_dim'], int(params['output_dim']) // 2)),
+            nn.Linear(int(params['hidden_dim']), int(params['output_dim']) // 2),
             nn.BatchNorm1d(int(params['output_dim']) // 2),
             nn.ReLU(inplace=True),
             nn.Linear(int(params['output_dim']) // 2, int(params['output_dim']) // 4)
         )
         self.seq_transformer = Seq_Transformer(patch_size=self.output_dim, dim=int(params['hidden_dim']), depth=4, heads=4, mlp_dim=64)
 
-    def forward(self, feature_aug1, feature_aug2, static_context):
+    def forward(self, feature_aug1, feature_aug2):
         z_aug1 = feature_aug1   # (batch_size, channels, seq_len)
         seq_len = z_aug1.shape[2]
         z_aug1 = torch.permute(z_aug1, (0, 2, 1)).contiguous()

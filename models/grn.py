@@ -37,7 +37,10 @@ class gated_residual_network(nn.Module):
         self.layer_norm = nn.LayerNorm(self.output_dim)
 
     def forward(self, x, additional_context=None):
-        skip = self.output_linear(x)
+        if self.output_dim == self.hidden_dim:
+            skip = x
+        else:
+            skip = self.output_linear(x)
         output = self.elu(self.dense0(x))
         if additional_context is not None:
             add_output = self.add_linear(additional_context)

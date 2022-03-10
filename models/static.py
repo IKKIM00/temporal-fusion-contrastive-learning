@@ -10,7 +10,7 @@ class StaticEmbedding(nn.Module):
 
         params = dict(model_params)
 
-        self.input_size = int(params['input_size'])
+        self.input_size = len(params['column_definition'])
         self.column_definition = params['column_definition']
         self.output_dim = int(params['output_dim'])
         self.category_counts = json.loads(str(params['category_counts']))
@@ -34,14 +34,13 @@ class StaticEmbedding(nn.Module):
             self.embeddings.append(embedding)
 
     def forward(self, all_inputs):
-        regular_inputs, categorical_inputs = all_inputs[:, :, :self.num_regular_variables], all_inputs[:, :, self.num_regular_variables:]
-        b, seq_len, c = regular_inputs.size()
+        regular_inputs, categorical_inputs = all_inputs[:, :self.num_regular_variables], all_inputs[:, self.num_regular_variables:]
 
         embedded_inputs = [
-            self.embeddings[i](categorical_inputs[Ellipsis, i]) for i in range(self.num_categorical_variables)
+            self.embeddings[i](categorical_inputs[Ellipsis, i].int()) for i in range(self.num_categorical_variables)
         ]
-        static_inputs = [nn.Linear(1, self.output_dim)(regular_inputs[:, 0, i: i + 1]) for i in range(self.num_regular_variables)]\
-                        + [embedded_inputs[i][:, 0, :] for i in range(self.num_categorical_variables)]
+        static_inputs = [nn.Linear(1, self.output_dim)(regular_inputs[:, i: i + 1].float()) for i in range(self.num_regular_variables)]\
+                        + [embedded_inputs[i][:, :] for i in range(self.num_categorical_variables)]
 
         static_inputs = torch.stack(static_inputs, dim=1)
         return static_inputs
@@ -53,7 +52,7 @@ class StaticVector(nn.Module):
 
         params = dict(model_params)
 
-        self.input_size = int(params['input_size'])
+        self.input_size = len(params['column_definition'])
         self.output_dim = int(params['output_dim'])
         self.dropout = float(params['dropout'])
 
@@ -71,13 +70,14 @@ class StaticVector(nn.Module):
         :return:
         """
         embedding = self.static_embedding(all_inputs)
+        _, num_statics, _ = embedding.shape
         flatten = self.flatten(embedding)
         mlp_output = self.grn(flatten)
         sparse_weights = self.softmax(mlp_output)
         sparse_weights = torch.unsqueeze(sparse_weights, dim=-1)
 
         trans_emb_list = []
-        for i in range(self.num_statics):
+        for i in range(num_statics):
             e = gated_residual_network(input_dim=self.output_dim,
                                        hidden_dim=self.output_dim)(embedding[:, i:i + 1, :])
             trans_emb_list.append(e)
@@ -93,10 +93,13 @@ class CombineFeatureAndStatic(nn.Module):
 
         params = dict(model_params)
 
-        self.input_size = int(params['input_size'])
         self.output_dim = int(params['output_dim'])
-        self.grn = gated_residual_network(input_dim=self.input_size,
+        self.feature_len = int(params['feature_len'])
+
+        self.flatten = nn.Flatten()
+        self.grn = gated_residual_network(input_dim=self.output_dim * self.feature_len,
                                           hidden_dim=self.output_dim,
                                           additional_context=True)
     def forward(self, feature, static_vec):
+        feature = self.flatten(feature)
         return self.grn(feature, static_vec)
