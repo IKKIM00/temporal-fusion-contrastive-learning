@@ -27,3 +27,5 @@ ipython_config.py
 # Environments
 venv/
 
+# dataset dir
+datasets/
