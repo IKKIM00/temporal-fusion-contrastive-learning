@@ -104,5 +104,6 @@ class BaseFormatter(abc.ABC):
 
     def get_experiment_params(self):
         model_params, aug_params, loss_params = self.get_model_configs()
+        model_params['column_definition'] = self.get_column_definition()
         model_params.update(self._get_input_indicies())
         return model_params, aug_params, loss_params
