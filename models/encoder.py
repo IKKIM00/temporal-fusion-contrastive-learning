@@ -1,19 +1,28 @@
 import torch
 import torch.nn as nn
 from models.grn import gated_residual_network
-from models.static_utils import static_combine_and_mask
+from models.static import static_combine_and_mask
 
 class cnn_encoder(nn.Module):
-    def __init__(self, configs):
+    def __init__(self, model_params):
         super(cnn_encoder, self).__init__()
 
+        params = dict(model_params)
+        self.kernel_siez = int(params['kernel_size'])
+        self.input_channels = int(params['input_dim'])
+        self.stride = int(params['stride'])
+        self.dropout = float(params['dropout'])
+        self.featre_len = int(params['feature_len'])
+        self.output_dim = int(params['output_dim'])
+        self.num_classes = int(params['num_classes'])
+
         self.conv_block1 = nn.Sequential(
-            nn.Conv1d(configs.input_channels, 32, kernel_size=configs.kernel_size,
-                      stride=configs.stride, bias=False, padding=(configs.kernel_size // 2)),
+            nn.Conv1d(self.input_channels, 32, kernel_size=self.kernel_size,
+                      stride=self.stride, bias=False, padding=(self.kernel_size // 2)),
             nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
-            nn.Dropout(configs.dropout)
+            nn.Dropout(self.dropout)
         )
 
         self.conv_block2 = nn.Sequential(
@@ -24,14 +33,14 @@ class cnn_encoder(nn.Module):
         )
 
         self.conv_block3 = nn.Sequential(
-            nn.Conv1d(64, configs.final_out_channels, kernel_size=8, stride=1, bias=False, padding=4),
-            nn.BatchNorm1d(configs.final_out_channels),
+            nn.Conv1d(64, self.output_dim, kernel_size=8, stride=1, bias=False, padding=4),
+            nn.BatchNorm1d(self.output_dim),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
         )
 
-        model_output_dim = configs.features_len
-        self.logits = nn.Linear(model_output_dim * configs.final_out_channels, configs.num_classes)
+        model_output_dim = self.features_len
+        self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
 
     def forward(self, x_in):
         x = self.conv_block1(x_in)
@@ -43,25 +52,29 @@ class cnn_encoder(nn.Module):
         return logits, x
 
 class lstm_encoder(nn.Module):
-    def __init__(self, configs, static_info=False):
+    def __init__(self, model_params, static_info=False):
         super(lstm_encoder, self).__init__()
 
-        self.input_dim = configs.input_channels
-        self.hidden_dim = configs.hidden_size
-        self.num_statics = configs.num_statics
+        params = dict(model_params)
+
+        self.input_dim = int(params['input_dim'])
+        self.hidden_dim = int(params['hidden_dim'])
+        self.input_size = int(params['input_size'])
+        self.dropout = float(params['dropout'])
+        self.num_classes = int(params['num_classes'])
         self.static_info = static_info
 
-        self.lstm = nn.LSTM(input_size=configs.input_channels,
-                            hidden_size=configs.hidden_size,
+        self.lstm = nn.LSTM(input_size=self.input_dim ,
+                            hidden_size=self.hidden_dim,
                             batch_first=True)
-        self.static_combine_and_mask = static_combine_and_mask(configs=configs)
-        self.static_context_state_h = gated_residual_network(input_dim=configs.hidden_size,
-                                                             output_dim=configs.hidden_size,
-                                                             droupout_rate=configs.dropout)
-        self.static_context_state_c = gated_residual_network(input_dim=configs.hidden_size,
-                                                             output_dim=configs.hidden_size,
-                                                             droupout_rate=configs.dropout)
-        self.logits = nn.Linear(configs.hidden_size, configs.num_classes)
+        self.static_combine_and_mask = static_combine_and_mask(model_params=model_params)
+        self.static_context_state_h = gated_residual_network(input_dim=self.hidden_dim,
+                                                             output_dim=self.hidden_dim,
+                                                             droupout_rate=self.dropout)
+        self.static_context_state_c = gated_residual_network(input_dim=self.hidden_dim,
+                                                             output_dim=self.hidden_dim,
+                                                             droupout_rate=self.dropout)
+        self.logits = nn.Linear(self.hidden_dim, self.num_classes)
 
     def forward(self, x, embedding):
         static_encoder, static_weights = self.static_combine_and_mask(embedding)

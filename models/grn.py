@@ -17,7 +17,7 @@ class apply_gating_layer(nn.Module):
         return torch.mul(activation_output, gated_output), self.gated_layer
 
 class gated_residual_network(nn.Module):
-    def __init__(self, input_dim, hidden_dim, droupout_rate=0.4, output_dim=None, additional_context=None):
+    def __init__(self, input_dim, hidden_dim, droupout_rate=0.4, output_dim=None, additional_context=False):
         super(gated_residual_network, self).__init__()
 
         self.hidden_dim = hidden_dim
@@ -28,17 +28,20 @@ class gated_residual_network(nn.Module):
         self.output_linear = nn.Linear(input_dim, self.output_dim)
 
         self.dense0 = nn.Linear(input_dim, hidden_dim)
-        if additional_context is not None:
-            self.dense0 = nn.Linear(input_dim*2, hidden_dim)
+        if additional_context == True:
+            self.add_linear = nn.Linear(input_dim, hidden_dim)
         self.dense1 = nn.Linear(hidden_dim, hidden_dim)
         self.elu = nn.ELU()
         self.glu = apply_gating_layer(self.hidden_dim, self.output_dim)
         self.dropout = nn.Dropout(p=droupout_rate)
         self.layer_norm = nn.LayerNorm(self.output_dim)
 
-    def forward(self, x):
+    def forward(self, x, additional_context=None):
         skip = self.output_linear(x)
         output = self.elu(self.dense0(x))
+        if additional_context is not None:
+            add_output = self.add_linear(additional_context)
+            output = output + add_output
         output = self.dropout(self.dense1(output))
         output, gated_layer = self.glu(output)
         output += skip
@@ -46,8 +49,9 @@ class gated_residual_network(nn.Module):
 
 if __name__ == "__main__":
     x = torch.rand(32, 2048)
+    add_context = torch.rand(32, 8 * 256)
     grn = gated_residual_network(input_dim=8 * 256,
                                  hidden_dim=256,
-                                 output_dim=8)
-    output = grn(x)
+                                 additional_context=True)
+    output = grn(x, add_context)
     print(output.shape)
