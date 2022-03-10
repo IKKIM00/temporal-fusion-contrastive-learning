@@ -95,7 +95,6 @@ class BaseFormatter(abc.ABC):
         real_inputs = _extract_tupes_from_data_type(DataTypes.REAL_VALUED, column_definition)
 
         locations = {
-            'input_size': len(self._get_input_columns()),
             'category_counts': self.num_classes_per_cat_input,
             'static_regular_inputs': _get_locations(real_inputs),
             'static_categorical_inputs': _get_locations(categorical_inputs)

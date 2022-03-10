@@ -2,6 +2,7 @@ import data_formatters.base
 import libs.utils as utils
 import sklearn.preprocessing
 import pandas as pd
+import torch
 
 BaseForamtter = data_formatters.base.BaseFormatter
 DataTypes = data_formatters.base.DataTypes
@@ -24,6 +25,7 @@ class MobiactFormatter(BaseForamtter):
         print('Formatting train-valid-test static data splits')
 
         person_info = pd.read_csv(dataset_dir + 'person_info.csv', index_col=0)
+        person_info = person_info[['age', 'height', 'weight', 'gender']]
         train = person_info.iloc[:50]
         valid = person_info.iloc[50: 57]
         test = person_info.iloc[57:]
@@ -59,7 +61,7 @@ class MobiactFormatter(BaseForamtter):
         for col in self.categorical_inputs:
             string_df = df[col].apply(str)
             output[col] = self._cat_scalers[col].transform(string_df)
-        return output
+        return torch.tensor(output.values)
 
     def get_model_params(self):
         model_params = {
