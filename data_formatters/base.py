@@ -77,7 +77,7 @@ class BaseFormatter(abc.ABC):
         return real_inputs + categorical_inputs
 
     def _get_input_columns(self):
-        return[tup[0] for tup in self.get_column_definition]
+        return[tup[0] for tup in self.get_column_definition()]
 
     def _get_input_indicies(self):
 
