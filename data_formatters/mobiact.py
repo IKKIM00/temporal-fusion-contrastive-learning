@@ -66,16 +66,16 @@ class MobiactFormatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
-            'kernel_size': 8,
+            'kernel_size': 43,
             'stride': 1,
             'hidden_dim': 64,
-            'output_dim': 128,
+            'output_dim': 32,
             'dropout': 0.35,
             'n_predicts': 12,
-            'feature_len': 24,
+            'feature_len': 29,
             'num_epoch': 100,
             'batch_size': 512,
-            'timesteps': 10,
+            'timestep': 10,
             'num_classes': 13
         }
         aug_params = {
@@ -84,6 +84,8 @@ class MobiactFormatter(BaseForamtter):
             'max_seg': 5
         }
         loss_params = {
+            'num_epoch': 100,
+            'batch_size': 512,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }
