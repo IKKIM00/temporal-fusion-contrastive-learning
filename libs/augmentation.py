@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 
-def TSTCCDataTransform(sample, config):
+def TSTCCDataTransform(sample, aug_params):
 
-    weak_aug = scaling(sample, config.augmentation.jitter_scale_ratio)
-    strong_aug = jitter(permutation(sample, max_segments=config.augmentation.max_seg), config.augmentation.jitter_ratio)
+    params =dict(aug_params)
+    weak_aug = scaling(sample, float(params['jitter_scale_ration']))
+    strong_aug = jitter(permutation(sample, max_segments=int(params['max_seg'])), float(params['jitter_ratio']))
 
     return weak_aug, strong_aug
 
