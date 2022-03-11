@@ -15,7 +15,7 @@ class ExperimentConfig(object):
         csv_map = {
             'mobiact': 'mobiact_preprocessed/'
         }
-        return csv_map
+        return csv_map[self.experiment]
 
     def make_data_formatter(self):
         data_formatter_class = {

@@ -76,7 +76,7 @@ class MobiactFormatter(BaseForamtter):
             'num_epoch': 100,
             'batch_size': 512,
             'timestep': 10,
-            'num_classes': 13,
+            'num_classes': 20,
             'lr': 3e-4,
             'beta1': 0.9,
             'beta2': 0.99,
