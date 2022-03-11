@@ -79,7 +79,8 @@ class MobiactFormatter(BaseForamtter):
             'num_classes': 13,
             'lr': 3e-4,
             'beta1': 0.9,
-            'beta2': 0.99
+            'beta2': 0.99,
+            'drop_last': True
         }
         aug_params = {
             'jitter_scale_ration': 0.001,
