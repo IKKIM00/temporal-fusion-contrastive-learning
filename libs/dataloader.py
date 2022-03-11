@@ -8,12 +8,12 @@ from libs.augmentation import TSTCCDataTransform
 
 class Load_Dataset(Dataset):
     # Initialize your data, download, etc.
-    def __init__(self, dataset, config, training_mode):
+    def __init__(self, dataset, aug_params, training_mode):
         super(Load_Dataset, self).__init__()
         self.training_mode = training_mode
 
-        X_train = dataset["samples"]
-        y_train = dataset["labels"]
+        X_train = dataset.tensors[0]
+        y_train = dataset.tensors[1]
 
         if len(X_train.shape) < 3:
             X_train = X_train.unsqueeze(2)
@@ -30,7 +30,7 @@ class Load_Dataset(Dataset):
 
         self.len = X_train.shape[0]
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes
-            self.aug1, self.aug2 = TSTCCDataTransform(self.x_data, config)
+            self.aug1, self.aug2 = TSTCCDataTransform(self.x_data, aug_params)
 
     def __getitem__(self, index):
         if self.training_mode == "self_supervised":
@@ -42,24 +42,24 @@ class Load_Dataset(Dataset):
         return self.len
 
 
-def data_generator(data_path, configs, training_mode):
+def data_generator(data_path, model_params, aug_params, training_mode):
 
     train_dataset = torch.load(os.path.join(data_path, "train.pt"))
-    valid_dataset = torch.load(os.path.join(data_path, "val.pt"))
+    valid_dataset = torch.load(os.path.join(data_path, "valid.pt"))
     test_dataset = torch.load(os.path.join(data_path, "test.pt"))
 
-    train_dataset = Load_Dataset(train_dataset, configs, training_mode)
-    valid_dataset = Load_Dataset(valid_dataset, configs, training_mode)
-    test_dataset = Load_Dataset(test_dataset, configs, training_mode)
+    train_dataset = Load_Dataset(train_dataset, aug_params, training_mode)
+    valid_dataset = Load_Dataset(valid_dataset, aug_params, training_mode)
+    test_dataset = Load_Dataset(test_dataset, aug_params, training_mode)
 
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=configs.batch_size,
-                                               shuffle=True, drop_last=configs.drop_last,
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=model_params['batch_size'],
+                                               shuffle=True, drop_last=model_params['drop_last'],
                                                num_workers=0)
-    valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, batch_size=configs.batch_size,
-                                               shuffle=False, drop_last=configs.drop_last,
+    valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, batch_size=model_params['batch_size'],
+                                               shuffle=False, drop_last=model_params['drop_last'],
                                                num_workers=0)
 
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=configs.batch_size,
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=model_params['batch_size'],
                                               shuffle=False, drop_last=False,
                                               num_workers=0)
 
