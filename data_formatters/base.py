@@ -48,7 +48,7 @@ class BaseFormatter(abc.ABC):
                 'feature_len': 24,
                 'num_epoch': 100,
                 'batch_size': 512,
-                'timesteps': 10,
+                'timestep': 10,
                 'num_classes': 2,
                 }
             aug_params = {
