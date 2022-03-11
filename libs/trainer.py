@@ -15,7 +15,7 @@ def Trainer(encoder, tfcc_model, static_vec_model, encoder_optimizer, tfcc_optim
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
         train_loss, train_acc = model_train(encoder, tfcc_model, static_vec_model, encoder_optimizer, tfcc_optimizer, static_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use)
-        valid_loss, valid_acc, _, _ =model_evaluate(encoder, tfcc_model, static_vec_model, test_loader, device, training_mode)
+        valid_loss, valid_acc, _, _ = model_evaluate(encoder, tfcc_model, static_vec_model, valid_loader, device, training_mode)
 
         if training_mode != "self_supervised":
             scheduler.step(valid_loss)
@@ -81,7 +81,7 @@ def model_train(encoder, tfcc_model, static_vec_model, encoder_optimizer, tfcc_o
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
         else:
             prediction, features = output
-            loss = criterion(prediction, labels)
+            loss = criterion(prediction, labels.long())
             total_acc.append(labels.eq(prediction.detach().argmax(dim=1)).float().mean())
 
         total_loss.append(loss.item())
