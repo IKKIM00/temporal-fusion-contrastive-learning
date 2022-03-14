@@ -8,14 +8,14 @@ import torch.nn.functional as F
 from models.loss import NTXentLoss
 
 
-def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, static_input, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True):
+def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, static_input, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
 
     criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, 'min')
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
-        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use)
+        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, valid_loader, device, training_mode)
 
         if training_mode != "self_supervised":
@@ -38,12 +38,11 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use):
+def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use):
     total_loss = []
     total_acc = []
     encoder.train()
     tfcc_model.train()
-    static_embedding_model.train()
     static_variable_selection.train()
 
     for batch_idx, (data, labels, aug1, aug2) in enumerate(train_loader):
@@ -63,7 +62,6 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             features2 = F.normalize(features2, dim=1)
 
             if static_use == True:
-                static_embedding_optimizer.zero_grad()
                 static_variable_selection_optimizer.zero_grad()
                 static_embedding = static_embedding_model(static_input.to(device))
                 static_vec, sparse_weights = static_variable_selection(static_embedding)
@@ -95,7 +93,6 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
         encoder_optimizer.step()
         tfcc_optimizer.step()
         if static_use == True:
-            static_embedding_optimizer.step()
             static_variable_selection_optimizer.step()
 
     total_loss = torch.tensor(total_loss).mean()
@@ -107,10 +104,9 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
     return total_loss, total_acc
 
 
-def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, test_loader, device, training_mode):
+def model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode):
     encoder.eval()
     tfcc_model.eval()
-    static_embedding_model.eval()
     static_variable_selection.eval()
 
     total_loss = []
