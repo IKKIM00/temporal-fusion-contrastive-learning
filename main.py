@@ -64,9 +64,11 @@ np.random.seed(SEED)
 experiment_log_dir = os.path.join(logs_save_dir, experiment_description, run_description, training_mode + f"_seed_{SEED}")
 os.makedirs(experiment_log_dir, exist_ok=True)
 
+
 # loop through domains
 counter = 0
 src_counter = 0
+
 
 # Logging
 log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
@@ -79,7 +81,7 @@ logger.debug("=" * 45)
 
 train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
 
-static_vec_model = StaticVariableSelection(model_params).to(device)
+static_vec_model = StaticVariableSelection(model_params)
 encoder = cnn_encoder(model_params).to(device)
 tfcc_model = TFCC(model_params, device).to(device)
 

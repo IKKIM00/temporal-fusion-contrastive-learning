@@ -60,7 +60,7 @@ def model_train(encoder, tfcc_model, static_vec_model, encoder_optimizer, tfcc_o
 
             if static_use == True:
                 static_optimizer.zero_grad()
-                static_vec, sparse_weights = static_vec_model(static_input)
+                static_vec, sparse_weights = static_vec_model(static_input.to(device))
                 features1 = torch.cat([features1, static_vec], dim=2)
                 features2 = torch.cat([features2, static_vec], dim=2)
 
