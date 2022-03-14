@@ -5,6 +5,15 @@ import torch.nn as nn
 from models.grn import gated_residual_network
 
 class StaticEmbedding(nn.Module):
+    """
+    Transform static data into static input.
+    Applies linear transformation to real value variables and embedding to categorical variables
+
+    :arg
+        static inputs: static input to transform
+    :returns
+        static_inputs: transformed inputs
+    """
     def __init__(self, model_params):
         super(StaticEmbedding, self).__init__()
 
@@ -13,7 +22,7 @@ class StaticEmbedding(nn.Module):
         self.input_size = len(params['column_definition'])
         self.column_definition = params['column_definition']
         self.output_dim = int(params['output_dim'])
-        self.category_counts = json.loads(str(params['category_counts']))
+        self.category_counts = json.loads(str(params['category_counts']))   # 각 categorical value들의 category 종류 개수
         self._static_regular_inputs = json.loads(str(params['static_regular_inputs']))
         self._static_categorical_inputs = json.loads(str(params['static_categorical_inputs']))
 
@@ -22,7 +31,7 @@ class StaticEmbedding(nn.Module):
 
         ### Embedding Variables ###
         embedding_sizes = [
-            self.output_dim for i , size in enumerate(self.category_counts)
+            self.output_dim for i, size in enumerate(self.category_counts)
         ]
         self.embeddings = []
         for i in range(self.num_categorical_variables):
@@ -34,6 +43,10 @@ class StaticEmbedding(nn.Module):
             self.embeddings.append(embedding)
 
     def forward(self, all_inputs):
+        """
+        :param all_inputs: size of (num of people, num of feature), static inputs
+        :return: embedded static input, size=(num of people, num of feature, embedding size)
+        """
         regular_inputs, categorical_inputs = all_inputs[:, :self.num_regular_variables], all_inputs[:, self.num_regular_variables:]
 
         embedded_inputs = [
@@ -46,15 +59,15 @@ class StaticEmbedding(nn.Module):
         return static_inputs
 
 
-class StaticVector(nn.Module):
+class StaticVariableSelection(nn.Module):
     def __init__(self, model_params):
-        super(StaticVector, self).__init__()
+        super(StaticVariableSelection, self).__init__()
 
-        params = dict(model_params)
-
-        self.input_size = len(params['column_definition'])
-        self.output_dim = int(params['output_dim'])
-        self.dropout = float(params['dropout'])
+        self.input_size = len(model_params['column_definition'])
+        self.output_dim = int(model_params['output_dim'])
+        self.dropout = float(model_params['dropout'])
+        self.batch_size = int(model_params['batch_size'])
+        self.feature_len = int(model_params['feature_len'])
 
         self.static_embedding = StaticEmbedding(model_params)
         self.flatten = nn.Flatten()
@@ -70,7 +83,7 @@ class StaticVector(nn.Module):
         :return:
         """
         embedding = self.static_embedding(all_inputs)
-        _, num_statics, _ = embedding.shape
+        num_person, num_statics, _ = embedding.shape
         flatten = self.flatten(embedding)
         mlp_output = self.grn(flatten)
         sparse_weights = self.softmax(mlp_output)
@@ -83,9 +96,9 @@ class StaticVector(nn.Module):
             trans_emb_list.append(e)
         transformed_embedding = torch.cat(trans_emb_list, dim=1)
         combined = torch.mul(sparse_weights, transformed_embedding)
-
         static_vec = torch.sum(combined, dim=1)
-        return static_vec, sparse_weights
+        static_vec = nn.Linear(num_person, self.feature_len)(torch.permute(static_vec, (1, 0)).contiguous())
+        return static_vec.repeat(self.batch_size, 1, 1), sparse_weights
 
 class CombineFeatureAndStatic(nn.Module):
     def __init__(self, model_params):

@@ -61,8 +61,8 @@ def model_train(encoder, tfcc_model, static_vec_model, encoder_optimizer, tfcc_o
             if static_use == True:
                 static_optimizer.zero_grad()
                 static_vec, sparse_weights = static_vec_model(static_input)
-                features1 = torch.cat([features1, static_vec.unsqueeze(-1)], dim=2)
-                features2 = torch.cat([features2, static_vec.unsqueeze(-1)], dim=2)
+                features1 = torch.cat([features1, static_vec], dim=2)
+                features2 = torch.cat([features2, static_vec], dim=2)
 
             temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2)
             temp_cont_loss2, temp_cont_feat2 = tfcc_model(features1, features2)

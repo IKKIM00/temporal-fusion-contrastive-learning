@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from models.grn import gated_residual_network
-from models.static import StaticVector
+from models.static import StaticVariableSelection
 
 class cnn_encoder(nn.Module):
     def __init__(self, model_params):
@@ -68,7 +68,7 @@ class lstm_encoder(nn.Module):
         self.lstm = nn.LSTM(input_size=self.input_dim ,
                             hidden_size=self.hidden_dim,
                             batch_first=True)
-        self.static_combine_and_mask = StaticVector(model_params=model_params)
+        self.static_combine_and_mask = StaticVariableSelection(model_params=model_params)
         self.static_context_state_h = gated_residual_network(input_dim=self.hidden_dim,
                                                              output_dim=self.hidden_dim,
                                                              droupout_rate=self.dropout)
