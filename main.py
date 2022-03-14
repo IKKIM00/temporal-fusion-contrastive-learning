@@ -10,7 +10,7 @@ from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
 from models.TFCC import TFCC
 from models.encoder import cnn_encoder
-from models.static import StaticVector
+from models.static import StaticVariableSelection
 from data_formatters.configs import ExperimentConfig
 
 start_time = datetime.now()
@@ -81,7 +81,7 @@ logger.debug("=" * 45)
 
 train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
 
-static_vec_model = StaticVector(model_params)
+static_vec_model = StaticVariableSelection(model_params)
 encoder = cnn_encoder(model_params).to(device)
 tfcc_model = TFCC(model_params, device).to(device)
 
