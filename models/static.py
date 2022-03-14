@@ -61,7 +61,7 @@ class StaticEmbedding(nn.Module):
 
 
 class StaticVariableSelection(nn.Module):
-    def __init__(self, model_params, device):
+    def __init__(self, model_params):
         super(StaticVariableSelection, self).__init__()
 
         self.input_size = len(model_params['column_definition'])
@@ -70,7 +70,6 @@ class StaticVariableSelection(nn.Module):
         self.batch_size = int(model_params['batch_size'])
         self.feature_len = int(model_params['feature_len'])
 
-        self.static_embedding = StaticEmbedding(model_params).to(device)
         self.flatten = nn.Flatten()
         self.grn = gated_residual_network(input_dim=self.input_size * self.output_dim,
                                           hidden_dim=self.output_dim,
@@ -78,12 +77,11 @@ class StaticVariableSelection(nn.Module):
                                           droupout_rate=self.dropout)
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, all_inputs):
+    def forward(self, embedding):
         """
         :param embedding: (batch_size, seq, c)
         :return:
         """
-        embedding = self.static_embedding(all_inputs)
         num_person, num_statics, _ = embedding.shape
         flatten = self.flatten(embedding)
         mlp_output = self.grn(flatten)

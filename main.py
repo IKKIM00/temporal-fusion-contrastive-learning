@@ -10,7 +10,7 @@ from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
 from models.TFCC import TFCC
 from models.encoder import cnn_encoder
-from models.static import StaticVariableSelection
+from models.static import StaticEmbedding, StaticVariableSelection
 from data_formatters.configs import ExperimentConfig
 
 start_time = datetime.now()
@@ -81,12 +81,14 @@ logger.debug("=" * 45)
 
 train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
 
-static_vec_model = StaticVariableSelection(model_params).to(device)
+static_embedding_model = StaticEmbedding(model_params).to(device)
+static_variable_selection = StaticVariableSelection(model_params).to(device)
 encoder = cnn_encoder(model_params).to(device)
 tfcc_model = TFCC(model_params, device).to(device)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=model_params['lr'], betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 tfcc_optimizer = torch.optim.Adam(tfcc_model.parameters(), lr=model_params['lr'], betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
-static_optimizer = torch.optim.Adam(static_vec_model.parameters(), lr=model_params['lr'], betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
+static_embedding_optimizer = torch.optim.Adam(static_embedding_model.parameters(), lr=model_params['lr'], betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
+static_variable_selection_optimizer = torch.optim.Adam(static_variable_selection.parameters(), lr=model_params['lr'], betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 
-Trainer(encoder, tfcc_model, static_vec_model, encoder_optimizer, tfcc_optimizer, static_optimizer, train_loader, valid_loader, test_loader, train, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True)
+Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, train, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True)
