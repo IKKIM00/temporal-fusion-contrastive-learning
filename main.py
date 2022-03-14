@@ -81,7 +81,7 @@ logger.debug("=" * 45)
 
 train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
 
-static_vec_model = StaticVariableSelection(model_params)
+static_vec_model = StaticVariableSelection(model_params).to(device)
 encoder = cnn_encoder(model_params).to(device)
 tfcc_model = TFCC(model_params, device).to(device)
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 
 import torch
@@ -60,7 +61,7 @@ class StaticEmbedding(nn.Module):
 
 
 class StaticVariableSelection(nn.Module):
-    def __init__(self, model_params):
+    def __init__(self, model_params, device):
         super(StaticVariableSelection, self).__init__()
 
         self.input_size = len(model_params['column_definition'])
@@ -69,7 +70,7 @@ class StaticVariableSelection(nn.Module):
         self.batch_size = int(model_params['batch_size'])
         self.feature_len = int(model_params['feature_len'])
 
-        self.static_embedding = StaticEmbedding(model_params)
+        self.static_embedding = StaticEmbedding(model_params).to(device)
         self.flatten = nn.Flatten()
         self.grn = gated_residual_network(input_dim=self.input_size * self.output_dim,
                                           hidden_dim=self.output_dim,
