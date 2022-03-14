@@ -43,7 +43,7 @@ class StaticEmbedding(nn.Module):
             )
             self.embeddings.append(embedding)
 
-    def forward(self, all_inputs):
+    def forward(self, all_inputs, device):
         """
         :param all_inputs: size of (num of people, num of feature), static inputs
         :return: embedded static input, size=(num of people, num of feature, embedding size)
@@ -51,7 +51,7 @@ class StaticEmbedding(nn.Module):
         regular_inputs, categorical_inputs = all_inputs[:, :self.num_regular_variables], all_inputs[:, self.num_regular_variables:]
 
         embedded_inputs = [
-            self.embeddings[i](categorical_inputs[Ellipsis, i].int()) for i in range(self.num_categorical_variables)
+            self.embeddings[i](categorical_inputs[Ellipsis, i].to(device, dtype=torch.int)) for i in range(self.num_categorical_variables)
         ]
         static_inputs = [nn.Linear(1, self.output_dim)(regular_inputs[:, i: i + 1].float()) for i in range(self.num_regular_variables)]\
                         + [embedded_inputs[i][:, :] for i in range(self.num_categorical_variables)]

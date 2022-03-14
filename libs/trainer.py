@@ -32,7 +32,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
-        test_loss, test_acc, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, test_loader, device, training_mode)
+        test_loss, test_acc, _, _ = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}')
 
     logger.debug("\n################## Training is Done! #########################")
@@ -63,7 +63,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
 
             if static_use == True:
                 static_variable_selection_optimizer.zero_grad()
-                static_embedding = static_embedding_model(static_input.to(device))
+                static_embedding = static_embedding_model(static_input.to(device), device)
                 static_vec, sparse_weights = static_variable_selection(static_embedding)
                 features1 = torch.cat([features1, static_vec], dim=2)
                 features2 = torch.cat([features2, static_vec], dim=2)
