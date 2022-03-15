@@ -62,7 +62,7 @@ class StaticEmbedding(nn.Module):
 
 
 class StaticVariableSelection(nn.Module):
-    def __init__(self, model_params):
+    def __init__(self, model_params, device):
         super(StaticVariableSelection, self).__init__()
 
         self.input_size = len(model_params['column_definition'])
@@ -70,6 +70,7 @@ class StaticVariableSelection(nn.Module):
         self.dropout = float(model_params['dropout'])
         self.batch_size = int(model_params['batch_size'])
         self.feature_len = int(model_params['feature_len'])
+        self.device = device
 
         self.flatten = nn.Flatten()
         self.grn = gated_residual_network(input_dim=self.input_size * self.output_dim,
@@ -92,12 +93,12 @@ class StaticVariableSelection(nn.Module):
         trans_emb_list = []
         for i in range(num_statics):
             e = gated_residual_network(input_dim=self.output_dim,
-                                       hidden_dim=self.output_dim)(embedding[:, i:i + 1, :])
+                                       hidden_dim=self.output_dim).to(self.device)(embedding[:, i:i + 1, :])
             trans_emb_list.append(e)
         transformed_embedding = torch.cat(trans_emb_list, dim=1)
         combined = torch.mul(sparse_weights, transformed_embedding)
         static_vec = torch.sum(combined, dim=1)
-        static_vec = nn.Linear(num_person, self.feature_len)(torch.permute(static_vec, (1, 0)).contiguous())
+        static_vec = nn.Linear(num_person, self.feature_len).to(self.device)(torch.permute(static_vec, (1, 0)).contiguous())
         return static_vec.repeat(self.batch_size, 1, 1), sparse_weights
 
 class CombineFeatureAndStatic(nn.Module):
