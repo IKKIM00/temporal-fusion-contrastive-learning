@@ -82,7 +82,7 @@ logger.debug("=" * 45)
 train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
 
 static_embedding_model = StaticEmbedding(model_params, device).to(device)
-static_variable_selection = StaticVariableSelection(model_params).to(device)
+static_variable_selection = StaticVariableSelection(model_params, device).to(device)
 encoder = cnn_encoder(model_params).to(device)
 tfcc_model = TFCC(model_params, device).to(device)
 
