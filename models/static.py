@@ -26,6 +26,7 @@ class StaticEmbedding(nn.Module):
         self.category_counts = json.loads(str(params['category_counts']))   # 각 categorical value들의 category 종류 개수
         self._static_regular_inputs = json.loads(str(params['static_regular_inputs']))
         self._static_categorical_inputs = json.loads(str(params['static_categorical_inputs']))
+        self.device = device
 
         self.num_categorical_variables = len(self.category_counts)
         self.num_regular_variables = self.input_size - self.num_categorical_variables
@@ -53,7 +54,7 @@ class StaticEmbedding(nn.Module):
         embedded_inputs = [
             self.embeddings[i](categorical_inputs[Ellipsis, i].int()) for i in range(self.num_categorical_variables)
         ]
-        static_inputs = [nn.Linear(1, self.output_dim)(regular_inputs[:, i: i + 1].float()) for i in range(self.num_regular_variables)]\
+        static_inputs = [nn.Linear(1, self.output_dim).to(self.device)(regular_inputs[:, i: i + 1].float()) for i in range(self.num_regular_variables)]\
                         + [embedded_inputs[i][:, :] for i in range(self.num_categorical_variables)]
 
         static_inputs = torch.stack(static_inputs, dim=1)

@@ -63,7 +63,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
 
             if static_use == True:
                 static_variable_selection_optimizer.zero_grad()
-                static_embedding = static_embedding_model(static_input.to(device), device)
+                static_embedding = static_embedding_model(static_input.to(device))
                 static_vec, sparse_weights = static_variable_selection(static_embedding)
                 features1 = torch.cat([features1, static_vec], dim=2)
                 features2 = torch.cat([features2, static_vec], dim=2)
