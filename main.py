@@ -36,6 +36,7 @@ parser.add_argument('--home_path', default=home_dir, type=str,
                     help='Project home directory')
 args = parser.parse_args()
 
+# +
 device = torch.device(args.device)
 experiment_description = args.experiment_description
 data_type = args.selected_dataset
@@ -43,6 +44,9 @@ training_mode = args.training_mode
 method = 'TS-TCC'
 run_description = args.run_description
 static_use = args.static_use
+
+print(f"Args: {args}")
+# -
 
 SEED = args.seed
 torch.manual_seed(SEED)
