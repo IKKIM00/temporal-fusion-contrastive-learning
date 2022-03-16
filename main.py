@@ -42,6 +42,7 @@ data_type = args.selected_dataset
 training_mode = args.training_mode
 method = 'TS-TCC'
 run_description = args.run_description
+static_use = args.static_use
 
 SEED = args.seed
 torch.manual_seed(SEED)
