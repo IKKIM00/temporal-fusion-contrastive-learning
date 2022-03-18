@@ -107,8 +107,8 @@ if training_mode == "fine_tune":
     encoder.load_state_dict(model_dict)
 
 if training_mode == 'train_linear' or "tl" in training_mode:
-    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", 'saved_models'))
-    chkpoint = torch.load(os.path.join(load_from, "ckpt_last.pt"), map_location=device)
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", "saved_models"))
+    chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     pretrained_dict = chkpoint["model_state_dict"]
     model_dict = encoder.state_dict()
 
