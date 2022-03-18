@@ -53,12 +53,12 @@ class cnn_encoder(nn.Module):
         return logits, x
 
 class lstm_encoder(nn.Module):
-    def __init__(self, model_params, static_info=False):
+    def __init__(self, model_params, device, static_info=False):
         super(lstm_encoder, self).__init__()
 
         params = dict(model_params)
 
-        self.input_dim = int(params['input_dim'])
+        self.input_dim = int(params['input_size'])
         self.hidden_dim = int(params['hidden_dim'])
         self.input_size = int(params['input_size'])
         self.dropout = float(params['dropout'])
@@ -68,22 +68,34 @@ class lstm_encoder(nn.Module):
         self.lstm = nn.LSTM(input_size=self.input_dim ,
                             hidden_size=self.hidden_dim,
                             batch_first=True)
-        self.static_combine_and_mask = StaticVariableSelection(model_params=model_params)
-        self.static_context_state_h = gated_residual_network(input_dim=self.hidden_dim,
-                                                             output_dim=self.hidden_dim,
-                                                             droupout_rate=self.dropout)
-        self.static_context_state_c = gated_residual_network(input_dim=self.hidden_dim,
-                                                             output_dim=self.hidden_dim,
-                                                             droupout_rate=self.dropout)
+        # self.static_combine_and_mask = StaticVariableSelection(model_params=model_params, device=device)
+        # self.static_context_state_h = gated_residual_network(input_dim=self.hidden_dim,
+        #                                                      hidden_dim=self.hidden_dim,
+        #                                                      droupout_rate=self.dropout)
+        # self.static_context_state_c = gated_residual_network(input_dim=self.hidden_dim,
+        #                                                      hidden_dim=self.hidden_dim,
+        #                                                      droupout_rate=self.dropout)
         self.logits = nn.Linear(self.hidden_dim, self.num_classes)
 
-    def forward(self, x, embedding):
-        static_encoder, static_weights = self.static_combine_and_mask(embedding)
-        if self.static_info == True:
-            static_h = self.static_context_state_h(static_encoder)
-            static_c = self.static_context_state_c(static_encoder)
-            output, (h_t, c_t) = self.lstm(x, (static_h, static_c))
-        else:
-            output, (h_t, c_t) = self.lstm(x)
+    def forward(self, x):
+        # static_encoder, static_weights = self.static_combine_and_mask(embedding)
+        # if self.static_info:
+        #     static_h = self.static_context_state_h(static_encoder)
+        #     static_c = self.static_context_state_c(static_encoder)
+        #     output, (h_t, c_t) = self.lstm(x, (static_h, static_c))
+        # else:
+        output, (h_t, c_t) = self.lstm(x)
         logits = self.logits(h_t)
         return logits, output
+
+if __name__ == '__main__':
+    from data_formatters.mobiact import MobiactFormatter
+
+    dataformatter = MobiactFormatter()
+    model_params, aug_params, loss_params = dataformatter.get_experiment_params()
+
+    sample = torch.randn((32, 6, 2995))
+    embedding = torch.randn((50, 4, 32))
+    model = lstm_encoder(model_params, 'cpu', static_info=True)
+    logits, output = model(torch.permute(sample, (0, 2, 1)).contiguous())
+    print(logits.shape, output.shape)

@@ -9,7 +9,7 @@ from libs.utils import _calc_metrics, copy_Files
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
 from models.TFCC import TFCC
-from models.encoder import cnn_encoder
+from models.encoder import cnn_encoder, lstm_encoder
 from models.static import StaticEmbedding, StaticVariableSelection
 from data_formatters.configs import ExperimentConfig
 
@@ -24,6 +24,7 @@ parser.add_argument('--run_description', default='run1', type=str,
                     help='Experiment Description')
 parser.add_argument('--seed', default=42, type=int,
                     help='seed value')
+parser.add_argument('--encoder_model', default='CNN', type=str)
 parser.add_argument('--training_mode', default='supervised', type=str,
                     help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
@@ -43,6 +44,7 @@ data_type = args.selected_dataset
 training_mode = args.training_mode
 method = 'TS-TCC'
 run_description = args.run_description
+encoder_model = args.encoder_model
 static_use = args.static_use
 
 print(f"Args: {args}")
@@ -86,9 +88,12 @@ train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_para
 logger.debug("Data loaded ...")
 #########################
 
+encoders = {'CNN': cnn_encoder(model_params).to(device),
+            'LSTM': lstm_encoder(model_params, device, static_info=static_use).to(device)}
+
 static_embedding_model = StaticEmbedding(model_params, device).to(device)
 static_variable_selection = StaticVariableSelection(model_params, device).to(device)
-encoder = cnn_encoder(model_params).to(device)
+encoder = encoders[encoder_model]
 tfcc_model = TFCC(model_params, device).to(device)
 
 if training_mode == "fine_tune":

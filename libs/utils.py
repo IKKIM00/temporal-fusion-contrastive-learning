@@ -6,14 +6,18 @@ import pandas as pd
 import os
 import sys
 import logging
-from sklearn.metrics import classification_report, cohen_kappa_score, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, cohen_kappa_score, confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
 from shutil import copy
 
-def extract_cols_from_data_type(data_type, colmn_definition):
+def get_single_col_by_input_type(input_type, column_definition):
+    l = [tup[0] for tup in column_definition if tup[2] == input_type]
+    return l[0]
+
+def extract_cols_from_data_type(data_type, colmn_definition, excluded_input_types):
     return [
         tup[0]
         for tup in colmn_definition
-        if tup[1] == data_type
+        if tup[1] == data_type and tup[2] not in excluded_input_types
     ]
 
 def set_requires_grad(model, dict_, requires_grad=True):
@@ -49,6 +53,9 @@ def _calc_metrics(pred_labels, true_labels, log_dir, home_path):
     df = pd.DataFrame(r)
     df["cohen"] = cohen_kappa_score(true_labels, pred_labels)
     df["accuracy"] = accuracy_score(true_labels, pred_labels)
+    df["f1 score"] = f1_score(true_labels, pred_labels, average='macro')
+    df["precision score"] = precision_score(true_labels, pred_labels, average='macro')
+    df['recall score'] = recall_score(true_labels, pred_labels, average='macro')
     df = df * 100
 
     # save classification report

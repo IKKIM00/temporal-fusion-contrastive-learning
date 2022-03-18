@@ -7,6 +7,8 @@ class DataTypes(enum.IntEnum):
 
 class InputTypes(enum.IntEnum):
     STATIC_INPUT = 0
+    OBSERVED_INPUT = 1
+    ID = 2
 
 class BaseFormatter(abc.ABC):
 
@@ -68,13 +70,14 @@ class BaseFormatter(abc.ABC):
     def get_column_definition(self):
         column_definition = self._column_definition
 
+        identifier = [tup for tup in column_definition if tup[2] == InputTypes.ID]
         real_inputs = [
-            tup for tup in column_definition if tup[1] == DataTypes.REAL_VALUED
+            tup for tup in column_definition if tup[1] == DataTypes.REAL_VALUED and tup[2] not in {InputTypes.ID}
         ]
         categorical_inputs = [
-            tup for tup in column_definition if tup[1] == DataTypes.CATEGORICAL
+            tup for tup in column_definition if tup[1] == DataTypes.CATEGORICAL and tup[2] not in {InputTypes.ID}
         ]
-        return real_inputs + categorical_inputs
+        return identifier + real_inputs + categorical_inputs
 
     def _get_input_columns(self):
         return[tup[0] for tup in self.get_column_definition()]
@@ -84,8 +87,8 @@ class BaseFormatter(abc.ABC):
         def _extract_tupes_from_data_type(data_type, defn):
             return [tup for tup in defn if tup[1]==data_type]
 
-        def _get_locations(defn):
-            return [i for i, tup in enumerate(defn)]
+        def _get_locations(input_types, defn):
+            return [i for i, tup in enumerate(defn) if tup[2] in input_types]
 
         column_definition = [
             tup for tup in self.get_column_definition()
@@ -96,8 +99,9 @@ class BaseFormatter(abc.ABC):
 
         locations = {
             'category_counts': self.num_classes_per_cat_input,
-            'static_regular_inputs': _get_locations(real_inputs),
-            'static_categorical_inputs': _get_locations(categorical_inputs)
+            'observed_input_loc': _get_locations({InputTypes.OBSERVED_INPUT}, column_definition),
+            'static_regular_inputs': _get_locations({InputTypes.STATIC_INPUT}, real_inputs),
+            'static_categorical_inputs': _get_locations({InputTypes.STATIC_INPUT}, categorical_inputs)
         }
         return locations
 
