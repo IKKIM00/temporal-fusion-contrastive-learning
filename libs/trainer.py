@@ -1,6 +1,8 @@
 import os
 import numpy as np
 
+from sklearn.metrics import f1_score, precision_score, recall_score
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,7 +18,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
         train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use)
-        valid_loss, valid_acc, _, _ = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
+        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
 
         if training_mode != "self_supervised":
             scheduler.step(valid_loss)
@@ -32,8 +34,9 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
-        test_loss, test_acc, _, _ = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
-        logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}')
+        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
+        logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}'
+                     f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
 
     logger.debug("\n################## Training is Done! #########################")
 
@@ -145,4 +148,7 @@ def model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, 
         return total_loss, total_acc, [], []
     else:
         total_acc = torch.tensor(total_acc).mean()  # average acc
-    return total_loss, total_acc, outs, trgs
+        precision = precision_score(trgs, outs, average='macro')
+        recall = recall_score(trgs, outs, average='macro')
+        f1 = f1_score(trgs, outs, average='macro')
+    return total_loss, total_acc, outs, trgs, precision, recall, f1
