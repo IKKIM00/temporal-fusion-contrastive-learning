@@ -135,7 +135,7 @@ Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, 
 
 if training_mode != "self_supervised":
     outs = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
-    total_loss, total_acc, pred_labels, true_labels = outs
+    total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
 
 logger.debug(f"Training time is: {datetime.now() - start_time}")

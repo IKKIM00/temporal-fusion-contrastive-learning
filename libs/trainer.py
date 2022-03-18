@@ -9,6 +9,9 @@ import torch.nn.functional as F
 
 from models.loss import NTXentLoss
 
+import warnings
+warnings.filterwarnings('always')
+
 
 def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, static_input, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
