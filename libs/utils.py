@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import sys
 import logging
-from sklearn.metrics import classification_report, cohen_kappa_score, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, cohen_kappa_score, confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
 from shutil import copy
 
 def extract_cols_from_data_type(data_type, colmn_definition):
@@ -49,6 +49,9 @@ def _calc_metrics(pred_labels, true_labels, log_dir, home_path):
     df = pd.DataFrame(r)
     df["cohen"] = cohen_kappa_score(true_labels, pred_labels)
     df["accuracy"] = accuracy_score(true_labels, pred_labels)
+    df["f1 score"] = f1_score(true_labels, pred_labels, average='macro')
+    df["precision score"] = precision_score(true_labels, pred_labels, average='macro')
+    df['recall score'] = recall_score(true_labels, pred_labels, average='macro')
     df = df * 100
 
     # save classification report
