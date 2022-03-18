@@ -32,6 +32,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
                      f'Valid Loss     : {valid_loss:.4f}\t | \tValid Accuracy     : {valid_acc:2.4f}')
         if valid_loss < best_loss:
+            logger.debug(f'Saving new model')
             best_loss = valid_loss
             best_encoder = encoder
             best_tfcc = tfcc_model
