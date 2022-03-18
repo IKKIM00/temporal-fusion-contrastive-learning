@@ -46,7 +46,6 @@ class MobiactFormatter(BaseForamtter):
     def split_data(self, dataset_dir):
         print('Formatting train-valid-test static data splits')
 
-        columns = ['person_id', 'acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z', 'height', 'weight', 'gender', 'age']
         max_length = 2995
 
         train_dir, valid_dir, test_dir = 'train/', 'valid/', 'test/'
@@ -75,15 +74,15 @@ class MobiactFormatter(BaseForamtter):
                 self.set_scalers(static_real_data, static_cate_data, observed_real_data)
                 output = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
                 X_train = output
-                y_train = y
+                y_train = self._target_scalers.fit_transform(y)
             elif idx == 1:
                 output = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
                 X_valid = output
-                y_valid = y
+                y_valid = self._target_scalers.transform(y)
             else:
                 output = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
                 X_test = output
-                y_test = y
+                y_test = self._target_scalers.transform(y)
 
         return X_train, y_train, X_valid, y_valid, X_test, y_test
 

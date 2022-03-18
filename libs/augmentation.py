@@ -3,7 +3,7 @@ import torch
 
 def TSTCCDataTransform(sample, aug_params):
 
-    params =dict(aug_params)
+    params = dict(aug_params)
     weak_aug = scaling(sample, float(params['jitter_scale_ration']))
     strong_aug = jitter(permutation(sample, max_segments=int(params['max_seg'])), float(params['jitter_ratio']))
 

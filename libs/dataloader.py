@@ -6,51 +6,42 @@ import numpy as np
 from libs.augmentation import TSTCCDataTransform
 
 
-class Load_Dataset(Dataset):
+class MobiActDataset(Dataset):
     # Initialize your data, download, etc.
-    def __init__(self, dataset, aug_params, training_mode):
-        super(Load_Dataset, self).__init__()
+    def __init__(self, X_data, y_data, aug_params, model_type, training_mode):
+        super(MobiActDataset, self).__init__()
         self.training_mode = training_mode
 
-        X_train = dataset.tensors[0]
-        y_train = dataset.tensors[1]
+        self.observed_real = torch.from_numpy(X_data['observed_real'])
+        self.static_real = torch.from_numpy(X_data['static_real'])
+        self.static_cate = torch.from_numpy(X_data['gender'])
+        self.static = torch.cat([self.static_real, self.static_cate], dim=1)
+        self.y_data = torch.from_numpy(y_data)
 
-        if len(X_train.shape) < 3:
-            X_train = X_train.unsqueeze(2)
+        if model_type == 'CNN':
+            self.observed_real = torch.permute(self.observed_real, (0, 2, 1)).contiguous()
 
-        if X_train.shape.index(min(X_train.shape)) != 1:  # make sure the Channels in second dim
-            X_train = X_train.permute(0, 2, 1)
-
-        if isinstance(X_train, np.ndarray):
-            self.x_data = torch.from_numpy(X_train)
-            self.y_data = torch.from_numpy(y_train).long()
-        else:
-            self.x_data = X_train
-            self.y_data = y_train
-
-        self.len = X_train.shape[0]
+        self.len = self.observed_real.shape[0]
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes
-            self.aug1, self.aug2 = TSTCCDataTransform(self.x_data, aug_params)
+            self.aug1, self.aug2 = TSTCCDataTransform(self.observed_real, aug_params)
 
     def __getitem__(self, index):
         if self.training_mode == "self_supervised":
-            return self.x_data[index], self.y_data[index], self.aug1[index], self.aug2[index]
+            return self.observed_real[index], self.y_data[index], self.aug1[index], self.aug2[index], self.static[index]
         else:
-            return self.x_data[index], self.y_data[index], self.x_data[index], self.x_data[index]
+            return self.observed_real[index], self.y_data[index], self.observed_real[index], self.y_data[index], self.static[index]
 
     def __len__(self):
         return self.len
 
 
-def data_generator(data_path, model_params, aug_params, training_mode):
+def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, model_params, aug_params, data_type, model_type, training_mode):
 
-    train_dataset = torch.load(os.path.join(data_path, "train.pt"))
-    valid_dataset = torch.load(os.path.join(data_path, "valid.pt"))
-    test_dataset = torch.load(os.path.join(data_path, "test.pt"))
+    choose_dataset = {'mobiact': MobiActDataset}
 
-    train_dataset = Load_Dataset(train_dataset, aug_params, training_mode)
-    valid_dataset = Load_Dataset(valid_dataset, aug_params, training_mode)
-    test_dataset = Load_Dataset(test_dataset, aug_params, training_mode)
+    train_dataset = choose_dataset[data_type](X_train, y_train, aug_params, model_type, training_mode)
+    valid_dataset = choose_dataset[data_type](X_valid, y_valid, aug_params, model_type, training_mode)
+    test_dataset = choose_dataset[data_type](X_test, y_test, aug_params, model_type, training_mode)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=model_params['batch_size'],
                                                shuffle=True, drop_last=model_params['drop_last'],

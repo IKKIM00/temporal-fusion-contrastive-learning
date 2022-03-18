@@ -81,7 +81,7 @@ formatter = config.make_data_formatter()
 
 # load_dataset
 dataset_dir = 'datasets/' + config.data_csv_path
-train, valid, test = formatter.split_data(dataset_dir=dataset_dir)
+X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir)
 model_params, aug_params, loss_params = formatter.get_experiment_params()
 
 train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
