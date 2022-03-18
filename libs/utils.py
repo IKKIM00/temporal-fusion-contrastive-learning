@@ -61,9 +61,9 @@ def _calc_metrics(pred_labels, true_labels, log_dir, home_path):
     # save classification report
     exp_name = os.path.split(os.path.dirname(log_dir))[-1]
     training_mode = os.path.basename(log_dir)
-    file_name = f"{exp_name}_{training_mode}_classification_report.xlsx"
+    file_name = f"{exp_name}_{training_mode}_classification_report.csv"
     report_Save_path = os.path.join(home_path, log_dir, file_name)
-    df.to_excel(report_Save_path)
+    df.to_csv(report_Save_path)
 
     # save confusion matrix
     cm_file_name = f"{exp_name}_{training_mode}_confusion_matrix.torch"

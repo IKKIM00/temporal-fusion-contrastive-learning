@@ -9,9 +9,14 @@ import torch.nn.functional as F
 
 from models.loss import NTXentLoss
 
+import warnings
+warnings.filterwarnings('always')
+
 
 def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, static_input, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
+
+    best_loss = 99999999999
 
     criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, 'min')
@@ -26,16 +31,22 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
                      f'Valid Loss     : {valid_loss:.4f}\t | \tValid Accuracy     : {valid_acc:2.4f}')
+        if valid_loss < best_loss:
+            logger.debug(f'Saving new model')
+            best_loss = valid_loss
+            best_encoder = encoder
+            best_tfcc = tfcc_model
     os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
-    chkpoint = {'model_state_dict': encoder.state_dict(),
-                'temporal_contr_model_state_dict': tfcc_model.state_dict()}
+    chkpoint = {'model_state_dict': best_encoder.state_dict(),
+                'temporal_contr_model_state_dict': best_tfcc.state_dict()}
     torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
         test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
-        logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}'
+
+        logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
 
     logger.debug("\n################## Training is Done! #########################")
