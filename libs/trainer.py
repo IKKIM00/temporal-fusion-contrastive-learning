@@ -45,7 +45,6 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
         test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
-
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
 
