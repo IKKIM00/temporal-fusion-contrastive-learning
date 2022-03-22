@@ -43,7 +43,10 @@ class cnn_encoder(nn.Module):
 
         model_output_dim = self.feature_len
         self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
-        self.static_logitis = nn.Linear((model_output_dim + 1) * self.output_dim, self.num_classes)
+        self.static_logitis = nn.Sequential(
+            nn.Linear((model_output_dim + 1) * self.output_dim, self.output_dim),
+            nn.Linear(self.output_dim, self.num_classes)
+        )
 
     def forward(self, obs_input, static_input=None):
         x = self.conv_block1(obs_input)
