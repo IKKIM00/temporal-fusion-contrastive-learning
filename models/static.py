@@ -36,12 +36,14 @@ class StaticEmbedding(nn.Module):
         ]
         self.embeddings = []
         for i in range(self.num_categorical_variables):
-            embedding = nn.Sequential(
-                nn.Embedding(
-                    num_embeddings=self.category_counts[i],
-                    embedding_dim=embedding_sizes[i]),
-            ).to(device)
+            embedding = nn.Embedding(
+                num_embeddings=self.category_counts[i],
+                embedding_dim=embedding_sizes[i]).to(device)
             self.embeddings.append(embedding)
+        self.emb_regulars = []
+        for i in range(self.num_regular_variables):
+            emb_reg = nn.Linear(1, self.output_dim).to(device)
+            self.emb_regulars.append(emb_reg)
 
     def forward(self, all_inputs):
         """
@@ -50,11 +52,13 @@ class StaticEmbedding(nn.Module):
         """
         regular_inputs, categorical_inputs = all_inputs[:, :self.num_regular_variables], all_inputs[:, self.num_regular_variables:]
 
-        embedded_inputs = [
+        cate_embedded_inputs = [
             self.embeddings[i](categorical_inputs[Ellipsis, i].int()) for i in range(self.num_categorical_variables)
         ]
-        static_inputs = [nn.Linear(1, self.output_dim).to(self.device)(regular_inputs[:, i: i + 1].float()) for i in range(self.num_regular_variables)]\
-                        + [embedded_inputs[i][:, :] for i in range(self.num_categorical_variables)]
+        reg_embedded_inputs = [
+            self.emb_regulars[i](regular_inputs[:, i].float().reshape(-1, 1)) for i in range(self.num_regular_variables)
+        ]
+        static_inputs = cate_embedded_inputs + reg_embedded_inputs
 
         static_inputs = torch.stack(static_inputs, dim=1)
         return static_inputs
@@ -116,5 +120,6 @@ if __name__ == '__main__':
     device = 'cpu'
     static_embedding_model = StaticEmbedding(model_params, device)
     embedding = static_embedding_model(static)
+    print(embedding.shape)
     static_variable_selection_model = StaticVariableSelection(model_params, device)
     static_vec, static_weight = static_variable_selection_model(embedding)
