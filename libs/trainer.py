@@ -43,13 +43,16 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
             best_loss = valid_loss
             best_encoder = encoder
             best_tfcc = tfcc_model
-        if training_mode == "self_supervised":
-            best_encoder = encoder
-            best_tfcc = tfcc_model
+
     os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
-    chkpoint = {'model_state_dict': best_encoder.state_dict(),
-                'temporal_contr_model_state_dict': best_tfcc.state_dict()}
-    torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+    if training_mode != "self_supervised":
+        chkpoint = {'model_state_dict': best_encoder.state_dict(),
+                    'temporal_contr_model_state_dict': best_tfcc.state_dict()}
+        torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+    else:
+        chkpoint = {'model_state_dict': encoder.state_dict(),
+                    'temporal_contr_model_state_dict': tfcc_model.state_dict()}
+        torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
