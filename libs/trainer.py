@@ -102,7 +102,10 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             zis = temp_cont_feat1
             zjs = temp_cont_feat2
         else:
-            output = encoder(observed_real)
+            if static_use:
+                output = encoder(observed_real, static_vec)
+            else:
+                output = encoder(observed_real)
 
         if training_mode == "self_supervised":
             lambda1 = 1
