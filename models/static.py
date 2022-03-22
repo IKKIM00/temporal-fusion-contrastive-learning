@@ -34,13 +34,13 @@ class StaticEmbedding(nn.Module):
         embedding_sizes = [
             self.output_dim for i, size in enumerate(self.category_counts)
         ]
-        self.embeddings = []
+        self.embeddings = nn.ModuleList()
         for i in range(self.num_categorical_variables):
             embedding = nn.Embedding(
                 num_embeddings=self.category_counts[i],
                 embedding_dim=embedding_sizes[i]).to(device)
             self.embeddings.append(embedding)
-        self.emb_regulars = []
+        self.emb_regulars = nn.ModuleList()
         for i in range(self.num_regular_variables):
             emb_reg = nn.Linear(1, self.output_dim).to(device)
             self.emb_regulars.append(emb_reg)
