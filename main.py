@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 from datetime import datetime
+import matplotlib.pyplot as plt
 import argparse
 from libs.utils import _logger, set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
@@ -145,7 +146,8 @@ if training_mode != "self_supervised":
                           training_mode, static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
-    print(f"preds labels: {pred_labels}")
-    print(f"true labels: {true_labels}")
-
+    plt.plot(total_acc, label='Accuracy', linewidth=2, color='r')
+    plt.plot(total_loss, 'o-', label='Loss')
+    plt.legend()
+    plt.savefig('loss_acc.png')
 logger.debug(f"Training time is: {datetime.now() - start_time}")
