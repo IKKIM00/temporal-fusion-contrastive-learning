@@ -96,7 +96,7 @@ class MobiactFormatter(BaseForamtter):
         num_classes = []
         for i in range(len(self.static_cate_columns)):
             srs = np.asarray(static_cate_data)[Ellipsis, i]
-            categorical_scalers[self.static_cate_columns[i]] = sklearn.preprocessing.OneHotEncoder().fit(srs.reshape(-1, 1))
+            categorical_scalers[self.static_cate_columns[i]] = sklearn.preprocessing.LabelEncoder().fit(srs.reshape(-1, ))
             num_classes.append(len(np.unique(srs)))
 
         self._cat_scalers = categorical_scalers
@@ -109,7 +109,7 @@ class MobiactFormatter(BaseForamtter):
 
         for i in range(len(self.static_cate_columns)):
             string_df = np.asarray(static_cate_data)[Ellipsis, i]
-            output[self.static_cate_columns[i]] = self._cat_scalers[self.static_cate_columns[i]].transform(string_df.reshape(-1, 1)).toarray()
+            output[self.static_cate_columns[i]] = self._cat_scalers[self.static_cate_columns[i]].transform(string_df)
         return output
 
     def get_model_params(self):

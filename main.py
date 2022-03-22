@@ -84,11 +84,11 @@ dataset_dir = 'datasets/' + config.data_csv_path
 X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir)
 model_params, aug_params, loss_params = formatter.get_experiment_params()
 
-train_loader, valid_loader, test_loader = data_generator(dataset_dir, model_params, aug_params, training_mode)
+train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, model_params, aug_params, data_type, encoder_model, training_mode)
 logger.debug("Data loaded ...")
 #########################
 
-encoders = {'CNN': cnn_encoder(model_params).to(device),
+encoders = {'CNN': cnn_encoder(model_params, static_use).to(device),
             'LSTM': lstm_encoder(model_params, device, static_info=static_use).to(device)}
 
 static_embedding_model = StaticEmbedding(model_params, device).to(device)
@@ -136,7 +136,9 @@ static_variable_selection_optimizer = torch.optim.Adam(static_variable_selection
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
-Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, train, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True)
+Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer,
+        static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
+        experiment_log_dir, training_mode, static_use=True)
 
 if training_mode != "self_supervised":
     outs = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)

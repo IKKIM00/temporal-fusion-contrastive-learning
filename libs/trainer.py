@@ -10,10 +10,13 @@ import torch.nn.functional as F
 from models.loss import NTXentLoss
 
 import warnings
+
 warnings.filterwarnings('always')
 
 
-def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, static_input, device, logger, loss_params, experiment_log_dir, training_mode, static_use=True):
+def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer,
+            static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
+            loss_params, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
 
     best_loss = 99999999999
@@ -22,8 +25,12 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, 'min')
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
-        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use)
-        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
+        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection,
+                                            encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer,
+                                            criterion, train_loader, loss_params, device, training_mode, static_use)
+        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model,
+                                                              static_variable_selection, test_loader, device,
+                                                              training_mode, static_use)
 
         if training_mode != "self_supervised":
             scheduler.step(valid_loss)
@@ -44,42 +51,47 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
-        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode)
+        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_embedding_model,
+                                                                          static_variable_selection, test_loader, device,
+                                                                          training_mode, static_use)
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
 
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, static_input, loss_params, device, training_mode, static_use):
+def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer,
+                tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, loss_params, device,
+                training_mode, static_use):
     total_loss = []
     total_acc = []
     encoder.train()
     tfcc_model.train()
     static_variable_selection.train()
 
-    for batch_idx, (data, labels, aug1, aug2) in enumerate(train_loader):
-        data, labels = data.float().to(device), labels.long().to(device)
+    for batch_idx, (observed_real, labels, aug1, aug2, static_input) in enumerate(train_loader):
+        observed_real, labels = observed_real.float().to(device), labels.long().to(device)
         aug1, aug2 = aug1.float().to(device), aug2.float().to(device)
 
         # optimizer
         encoder_optimizer.zero_grad()
         tfcc_optimizer.zero_grad()
 
+        if static_use:
+            static_variable_selection_optimizer.zero_grad()
+            static_embedding = static_embedding_model(static_input.to(device))
+            static_vec, sparse_weights = static_variable_selection(static_embedding)
 
         if training_mode == "self_supervised":
-            predictions1, features1 = encoder(aug1)
-            predictions2, features2 = encoder(aug2)
+            if static_use:
+                predictions1, features1 = encoder(aug1, static_vec)
+                predictions2, features2 = encoder(aug2, static_vec)
+            else:
+                predictions1, features1 = encoder(aug1)
+                predictions2, features2 = encoder(aug2)
 
             features1 = F.normalize(features1, dim=1)
             features2 = F.normalize(features2, dim=1)
-
-            if static_use == True:
-                static_variable_selection_optimizer.zero_grad()
-                static_embedding = static_embedding_model(static_input.to(device))
-                static_vec, sparse_weights = static_variable_selection(static_embedding)
-                features1 = torch.cat([features1, static_vec], dim=2)
-                features2 = torch.cat([features2, static_vec], dim=2)
 
             temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2)
             temp_cont_loss2, temp_cont_feat2 = tfcc_model(features1, features2)
@@ -87,7 +99,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             zis = temp_cont_feat1
             zjs = temp_cont_feat2
         else:
-            output = encoder(data)
+            output = encoder(observed_real)
 
         if training_mode == "self_supervised":
             lambda1 = 1
@@ -117,7 +129,8 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
     return total_loss, total_acc
 
 
-def model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, device, training_mode):
+def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, test_loader, device,
+                   training_mode, static_use):
     encoder.eval()
     tfcc_model.eval()
     static_variable_selection.eval()
@@ -130,13 +143,20 @@ def model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, 
     trgs = np.array([])
 
     with torch.no_grad():
-        for data, labels, _, _ in test_loader:
-            data, labels = data.float().to(device), labels.long().to(device)
+        for observed_real, labels, _, _, static_input in test_loader:
+            data, labels = observed_real.float().to(device), labels.long().to(device)
+
+            if static_use:
+                static_embedding = static_embedding_model(static_input.to(device))
+                static_vec, sparse_weights = static_variable_selection(static_embedding)
 
             if training_mode == "self_supervised":
                 pass
             else:
-                output = encoder(data)
+                if static_use:
+                    output = encoder(data, static_vec)
+                else:
+                    output = encoder(data)
 
             if training_mode != "self_supervised":
                 predictions, features = output
@@ -155,7 +175,7 @@ def model_evaluate(encoder, tfcc_model, static_variable_selection, test_loader, 
         total_loss = 0
     if training_mode == "self_supervised":
         total_acc = 0
-        return total_loss, total_acc, [], []
+        return total_loss, total_acc, [], [], 0, 0, 0
     else:
         total_acc = torch.tensor(total_acc).mean()  # average acc
         precision = precision_score(trgs, outs, average='macro')

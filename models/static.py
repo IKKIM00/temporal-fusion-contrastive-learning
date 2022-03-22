@@ -20,7 +20,6 @@ class StaticEmbedding(nn.Module):
 
         params = dict(model_params)
 
-        self.input_size = len(params['column_definition'])
         self.column_definition = params['column_definition']
         self.output_dim = int(params['output_dim'])
         self.category_counts = json.loads(str(params['category_counts']))   # 각 categorical value들의 category 종류 개수
@@ -28,8 +27,8 @@ class StaticEmbedding(nn.Module):
         self._static_categorical_inputs = json.loads(str(params['static_categorical_inputs']))
         self.device = device
 
-        self.num_categorical_variables = len(self.category_counts)
-        self.num_regular_variables = self.input_size - self.num_categorical_variables
+        self.num_categorical_variables = len(self._static_categorical_inputs)
+        self.num_regular_variables = len(self._static_regular_inputs)
 
         ### Embedding Variables ###
         embedding_sizes = [
@@ -65,7 +64,7 @@ class StaticVariableSelection(nn.Module):
     def __init__(self, model_params, device):
         super(StaticVariableSelection, self).__init__()
 
-        self.input_size = len(model_params['column_definition'])
+        self.input_size = len(json.loads(str(model_params['static_regular_inputs']))) + len(json.loads(str(model_params['static_categorical_inputs'])))
         self.output_dim = int(model_params['output_dim'])
         self.dropout = float(model_params['dropout'])
         self.batch_size = int(model_params['batch_size'])
@@ -84,7 +83,7 @@ class StaticVariableSelection(nn.Module):
         :param embedding: (batch_size, seq, c)
         :return:
         """
-        num_person, num_statics, _ = embedding.shape
+        b, num_statics, _ = embedding.shape
         flatten = self.flatten(embedding)
         mlp_output = self.grn(flatten)
         sparse_weights = self.softmax(mlp_output)
@@ -98,22 +97,24 @@ class StaticVariableSelection(nn.Module):
         transformed_embedding = torch.cat(trans_emb_list, dim=1)
         combined = torch.mul(sparse_weights, transformed_embedding)
         static_vec = torch.sum(combined, dim=1)
-        static_vec = nn.Linear(num_person, self.feature_len).to(self.device)(torch.permute(static_vec, (1, 0)).contiguous())
-        return static_vec.repeat(self.batch_size, 1, 1), sparse_weights
+        return static_vec, sparse_weights
 
-class CombineFeatureAndStatic(nn.Module):
-    def __init__(self, model_params):
-        super(CombineFeatureAndStatic, self).__init__()
 
-        params = dict(model_params)
+if __name__ == '__main__':
+    from data_formatters.mobiact import MobiactFormatter
+    from libs.dataloader import *
 
-        self.output_dim = int(params['output_dim'])
-        self.feature_len = int(params['feature_len'])
-
-        self.flatten = nn.Flatten()
-        self.grn = gated_residual_network(input_dim=self.output_dim * self.feature_len,
-                                          hidden_dim=self.output_dim,
-                                          additional_context=True)
-    def forward(self, feature, static_vec):
-        feature = self.flatten(feature)
-        return self.grn(feature, static_vec)
+    dataformatter = MobiactFormatter()
+    dataset_dir = '../datasets/mobiact_preprocessed/'
+    X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir=dataset_dir)
+    model_params, aug_params, loss_params = dataformatter.get_experiment_params()
+    train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
+                                                             model_params, aug_params, data_type='mobiact',
+                                                             model_type='CNN', training_mode='self_supervised')
+    dataiter = iter(train_loader)
+    observed_real, y, aug1, aug2, static = dataiter.next()
+    device = 'cpu'
+    static_embedding_model = StaticEmbedding(model_params, device)
+    embedding = static_embedding_model(static)
+    static_variable_selection_model = StaticVariableSelection(model_params, device)
+    static_vec, static_weight = static_variable_selection_model(embedding)

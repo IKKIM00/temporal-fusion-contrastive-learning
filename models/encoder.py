@@ -4,7 +4,7 @@ from models.grn import gated_residual_network
 from models.static import StaticVariableSelection
 
 class cnn_encoder(nn.Module):
-    def __init__(self, model_params):
+    def __init__(self, model_params, static_use=False):
         super(cnn_encoder, self).__init__()
 
         params = dict(model_params)
@@ -15,6 +15,7 @@ class cnn_encoder(nn.Module):
         self.feature_len = int(params['feature_len'])
         self.output_dim = int(params['output_dim'])
         self.num_classes = int(params['num_classes'])
+        self.static_use = static_use
 
         self.flatten = nn.Flatten()
         self.conv_block1 = nn.Sequential(
@@ -42,14 +43,20 @@ class cnn_encoder(nn.Module):
 
         model_output_dim = self.feature_len
         self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
+        self.static_logitis = nn.Linear((model_output_dim + 1) * self.output_dim, self.num_classes)
 
-    def forward(self, x_in):
-        x = self.conv_block1(x_in)
+    def forward(self, obs_input, static_input=None):
+        x = self.conv_block1(obs_input)
         x = self.conv_block2(x)
         x = self.conv_block3(x)
+        if self.static_use:
+            x = torch.cat([x, static_input.unsqueeze(-1)], dim=2)
 
         x_flat = self.flatten(x)
-        logits = self.logits(x_flat)
+        if self.static_use:
+            logits = self.static_logitis(x_flat)
+        else:
+            logits = self.logits(x_flat)
         return logits, x
 
 class lstm_encoder(nn.Module):

@@ -15,11 +15,11 @@ class MobiActDataset(Dataset):
         self.observed_real = torch.from_numpy(X_data['observed_real'])
         self.static_real = torch.from_numpy(X_data['static_real'])
         self.static_cate = torch.from_numpy(X_data['gender'])
-        self.static = torch.cat([self.static_real, self.static_cate], dim=1)
+        self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
 
         if model_type == 'CNN':
-            self.observed_real = torch.permute(self.observed_real, (0, 2, 1)).contiguous()
+            self.observed_real = torch.permute(self.observed_real, (1, 2, 0)).contiguous()
 
         self.len = self.observed_real.shape[0]
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes
