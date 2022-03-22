@@ -15,44 +15,40 @@ warnings.filterwarnings('always')
 
 
 def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer,
-            static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
+            static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
             loss_params, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
 
     best_loss = 99999999999
 
     criterion = nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, 'min')
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
         train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection,
-                                            encoder_optimizer, tfcc_optimizer, static_variable_selection_optimizer,
+                                            encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer,
                                             criterion, train_loader, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model,
-                                                              static_variable_selection, test_loader, device,
+                                                              static_variable_selection, valid_loader, device,
                                                               training_mode, static_use)
-
-        if training_mode != "self_supervised":
-            scheduler.step(valid_loss)
 
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
                      f'Valid Loss     : {valid_loss:.4f}\t | \tValid Accuracy     : {valid_acc:2.4f}')
-        if training_mode != "self_supervised" and valid_loss < best_loss:
-            logger.debug(f'Saving new model')
-            best_loss = valid_loss
-            best_encoder = encoder
-            best_tfcc = tfcc_model
+        # if training_mode != "self_supervised" and valid_loss < best_loss:
+        #     logger.debug(f'Saving new model')
+        #     best_loss = valid_loss
+        #     best_encoder = encoder
+        #     best_tfcc = tfcc_model
 
     os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
-    if training_mode != "self_supervised":
-        chkpoint = {'model_state_dict': best_encoder.state_dict(),
-                    'temporal_contr_model_state_dict': best_tfcc.state_dict()}
-        torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
-    else:
-        chkpoint = {'model_state_dict': encoder.state_dict(),
-                    'temporal_contr_model_state_dict': tfcc_model.state_dict()}
-        torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+    # if training_mode != "self_supervised":
+    #     chkpoint = {'model_state_dict': best_encoder.state_dict(),
+    #                 'temporal_contr_model_state_dict': best_tfcc.state_dict()}
+    #     torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+    # else:
+    chkpoint = {'model_state_dict': encoder.state_dict(),
+                'temporal_contr_model_state_dict': tfcc_model.state_dict()}
+    torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
@@ -67,13 +63,15 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
 
 
 def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer,
-                tfcc_optimizer, static_variable_selection_optimizer, criterion, train_loader, loss_params, device,
+                tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
     total_acc = []
     encoder.train()
     tfcc_model.train()
-    static_variable_selection.train()
+    if static_use:
+        static_embedding_model.train()
+        static_variable_selection.train()
 
     for batch_idx, (observed_real, labels, aug1, aug2, static_input) in enumerate(train_loader):
         observed_real, labels = observed_real.float().to(device), labels.long().to(device)
@@ -84,6 +82,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
         tfcc_optimizer.zero_grad()
 
         if static_use:
+            static_embedding_optimizer.zero_grad()
             static_variable_selection_optimizer.zero_grad()
             static_embedding = static_embedding_model(static_input.to(device))
             static_vec, sparse_weights = static_variable_selection(static_embedding)
@@ -126,7 +125,8 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
         loss.backward()
         encoder_optimizer.step()
         tfcc_optimizer.step()
-        if static_use == True:
+        if static_use:
+            static_embedding_optimizer.step()
             static_variable_selection_optimizer.step()
 
     total_loss = torch.tensor(total_loss).mean()
@@ -142,6 +142,7 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
                    training_mode, static_use):
     encoder.eval()
     tfcc_model.eval()
+    static_embedding_model.eval()
     static_variable_selection.eval()
 
     total_loss = []
