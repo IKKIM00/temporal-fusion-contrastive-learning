@@ -20,6 +20,8 @@ class MobiActDataset(Dataset):
 
         if model_type == 'CNN':
             self.observed_real = torch.permute(self.observed_real, (1, 2, 0)).contiguous()
+        elif model_type == 'LSTM':
+            self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
 
         self.len = self.observed_real.shape[0]
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes

@@ -85,12 +85,12 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             static_embedding_optimizer.zero_grad()
             static_variable_selection_optimizer.zero_grad()
             static_embedding = static_embedding_model(static_input.to(device))
-            static_vec, sparse_weights = static_variable_selection(static_embedding)
+            static_context_enrichment, static_vec, sparse_weights = static_variable_selection(static_embedding)
 
         if training_mode == "self_supervised":
             if static_use:
-                predictions1, features1 = encoder(aug1, static_vec)
-                predictions2, features2 = encoder(aug2, static_vec)
+                predictions1, features1 = encoder(aug1, static_context_enrichment)
+                predictions2, features2 = encoder(aug2, static_context_enrichment)
             else:
                 predictions1, features1 = encoder(aug1)
                 predictions2, features2 = encoder(aug2)
@@ -158,13 +158,13 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
 
             if static_use:
                 static_embedding = static_embedding_model(static_input.to(device))
-                static_vec, sparse_weights = static_variable_selection(static_embedding)
+                static_context_enrichment, static_vec, sparse_weights = static_variable_selection(static_embedding)
 
             if training_mode == "self_supervised":
                 pass
             else:
                 if static_use:
-                    output = encoder(data, static_vec)
+                    output = encoder(data, static_context_enrichment)
                 else:
                     output = encoder(data)
 

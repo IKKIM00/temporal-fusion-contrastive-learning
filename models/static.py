@@ -76,10 +76,12 @@ class StaticVariableSelection(nn.Module):
         self.device = device
 
         self.flatten = nn.Flatten()
-        self.grn = gated_residual_network(input_dim=self.input_size * self.output_dim,
+        self.grn0 = gated_residual_network(input_dim=self.input_size * self.output_dim,
                                           hidden_dim=self.output_dim,
                                           output_dim=self.input_size,
                                           droupout_rate=self.dropout)
+        self.grn1 = gated_residual_network(input_dim=self.output_dim,
+                                           hidden_dim=self.output_dim)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, embedding):
@@ -89,7 +91,7 @@ class StaticVariableSelection(nn.Module):
         """
         b, num_statics, _ = embedding.shape
         flatten = self.flatten(embedding)
-        mlp_output = self.grn(flatten)
+        mlp_output = self.grn0(flatten)
         sparse_weights = self.softmax(mlp_output)
         sparse_weights = torch.unsqueeze(sparse_weights, dim=-1)
 
@@ -101,7 +103,8 @@ class StaticVariableSelection(nn.Module):
         transformed_embedding = torch.cat(trans_emb_list, dim=1)
         combined = torch.mul(sparse_weights, transformed_embedding)
         static_vec = torch.sum(combined, dim=1)
-        return static_vec, sparse_weights
+        static_context_enrichment = self.grn1(static_vec)
+        return static_context_enrichment, static_vec, sparse_weights
 
 
 if __name__ == '__main__':
@@ -120,6 +123,9 @@ if __name__ == '__main__':
     device = 'cpu'
     static_embedding_model = StaticEmbedding(model_params, device)
     embedding = static_embedding_model(static)
-    print(embedding.shape)
     static_variable_selection_model = StaticVariableSelection(model_params, device)
     static_vec, static_weight = static_variable_selection_model(embedding)
+    print(static_vec.shape)
+    grn = gated_residual_network(model_params['output_dim'], model_params['output_dim'])
+    grn_output = grn(static_vec)
+    print(grn_output.shape)

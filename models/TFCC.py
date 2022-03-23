@@ -52,5 +52,3 @@ class TFCC(nn.Module):
         nce /= -1. * batch * self.timestep
         return nce, self.projection_head(c_t)
 
-if __name__ == '__main__':
-    model = TFCC()
