@@ -1,5 +1,6 @@
+import torch
 import torch.nn as nn
-
+from models.grn import gated_residual_network
 
 class cnn_encoder(nn.Module):
     def __init__(self, model_params, static_use=False):
@@ -56,6 +57,7 @@ class cnn_encoder(nn.Module):
         else:
             logits = self.logits(x_flat)
         return logits, x
+
 
 class lstm_encoder(nn.Module):
     def __init__(self, model_params, static_info=False):
