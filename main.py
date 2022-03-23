@@ -90,7 +90,7 @@ logger.debug("Data loaded ...")
 #########################
 
 encoders = {'CNN': cnn_encoder(model_params, static_use).to(device),
-            'LSTM': lstm_encoder(model_params, device, static_info=static_use).to(device)}
+            'LSTM': lstm_encoder(model_params, static_info=static_use).to(device)}
 
 static_embedding_model = StaticEmbedding(model_params, device).to(device)
 static_variable_selection = StaticVariableSelection(model_params, device).to(device)
