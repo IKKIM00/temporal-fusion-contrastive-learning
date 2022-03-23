@@ -1,7 +1,5 @@
-import torch
 import torch.nn as nn
-from models.grn import gated_residual_network
-from models.static import StaticVariableSelection
+
 
 class cnn_encoder(nn.Module):
     def __init__(self, model_params, static_use=False):
@@ -85,7 +83,7 @@ class lstm_encoder(nn.Module):
         self.static_adaptive_pooling = nn.AdaptiveAvgPool1d(self.feature_len + 1)
         self.logits = nn.Linear(self.output_dim, self.num_classes)
 
-    def forward(self, x, static_vec):
+    def forward(self, x, static_vec, static_enrichment_vec):
         # static_encoder, static_weights = self.static_combine_and_mask(embedding)
         if self.static_info:
             static_h = self.static_context_state_h(static_vec.unsqueeze(0))
@@ -95,6 +93,7 @@ class lstm_encoder(nn.Module):
         else:
             output, (h_t, c_t) = self.lstm(x)
             output = self.adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
+        h_t = torch.cat([h_t.squeeze(), static_enrichment_vec])
         logits = self.logits(h_t)
         return logits, output
 
@@ -119,7 +118,7 @@ if __name__ == '__main__':
     static_variable_selection_model = StaticVariableSelection(model_params, 'cpu')
     static_embedding = static_embedding_model(static)
     static_context_enrichment, static_vec, sparse_weights = static_variable_selection_model(static_embedding)
-    logits, output = model(observed_real.float(), static_vec)
+    logits, output = model(observed_real.float(), static_vec, static_context_enrichment)
     print(logits.shape, output.shape)
     # LSTM - (1, 512, 20), (512, 32, 30)
     # CNN - (512, 20), (512, 32, 30)
