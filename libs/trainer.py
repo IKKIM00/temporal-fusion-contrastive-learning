@@ -14,7 +14,7 @@ import warnings
 warnings.filterwarnings('always')
 
 
-def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer,
+def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer, tfcc_optimizer,
             static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
             loss_params, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
@@ -24,11 +24,11 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     criterion = nn.CrossEntropyLoss()
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
-        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection,
+        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type,
                                             encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer,
                                             criterion, train_loader, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model,
-                                                              static_variable_selection, valid_loader, device,
+                                                              static_variable_selection, encoder_model_type, valid_loader, device,
                                                               training_mode, static_use)
 
         logger.debug(f'\nEpoch : {epoch}\n'
@@ -54,7 +54,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
         test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_embedding_model,
-                                                                          static_variable_selection, test_loader, device,
+                                                                          static_variable_selection, encoder_model_type, test_loader, device,
                                                                           training_mode, static_use)
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
@@ -62,7 +62,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer,
+def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer,
                 tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
@@ -88,9 +88,12 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             static_context_enrichment, static_vec, sparse_weights = static_variable_selection(static_embedding)
 
         if training_mode == "self_supervised":
-            if static_use:
+            if static_use and encoder_model_type == 'CNN':
                 predictions1, features1 = encoder(aug1, static_context_enrichment)
                 predictions2, features2 = encoder(aug2, static_context_enrichment)
+            elif static_use and encoder_model_type == 'LSTM':
+                predictions1, features1 = encoder(aug1, static_vec, static_context_enrichment)
+                predictions2, features2 = encoder(aug2, static_vec, static_context_enrichment)
             else:
                 predictions1, features1 = encoder(aug1)
                 predictions2, features2 = encoder(aug2)
@@ -138,7 +141,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
     return total_loss, total_acc
 
 
-def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, test_loader, device,
+def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, test_loader, device,
                    training_mode, static_use):
     encoder.eval()
     tfcc_model.eval()
@@ -163,8 +166,10 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
             if training_mode == "self_supervised":
                 pass
             else:
-                if static_use:
+                if static_use and encoder_model_type == 'CNN':
                     output = encoder(data, static_context_enrichment)
+                elif static_use and encoder_model_type == 'LSTM':
+                    output = encoder(data, static_vec, static_context_enrichment)
                 else:
                     output = encoder(data)
 
@@ -174,7 +179,6 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
                 total_acc.append(labels.eq(predictions.detach().argmax(dim=1)).float().mean())
                 total_loss.append(loss.item())
 
-            if training_mode != "self_supervised":
                 pred = predictions.argmax(dim=1)  # get the index of the max log-probability
                 outs = np.append(outs, pred.cpu().numpy())
                 trgs = np.append(trgs, labels.data.cpu().numpy())
