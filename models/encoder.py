@@ -85,7 +85,7 @@ class lstm_encoder(nn.Module):
         self.static_adaptive_pooling = nn.AdaptiveAvgPool1d(self.feature_len + 1)
         self.logits = nn.Linear(self.output_dim, self.num_classes)
 
-    def forward(self, x, static_vec, static_enrichment_vec):
+    def forward(self, x, static_vec=None, static_enrichment_vec=None):
         # static_encoder, static_weights = self.static_combine_and_mask(embedding)
         if self.static_info:
             static_h = self.static_context_state_h(static_vec.unsqueeze(0))
