@@ -138,12 +138,12 @@ static_variable_selection_optimizer = torch.optim.Adam(static_variable_selection
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
-Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_optimizer, tfcc_optimizer,
+Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, encoder_optimizer, tfcc_optimizer,
         static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
         experiment_log_dir, training_mode, static_use=True)
 
 if training_mode != "self_supervised":
-    outs = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, test_loader, device,
+    outs = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, test_loader, device,
                           training_mode, static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
