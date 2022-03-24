@@ -92,10 +92,10 @@ class lstm_encoder(nn.Module):
             static_c = self.static_context_state_c(static_vec.unsqueeze(0))
             output, (h_t, c_t) = self.lstm(x, (static_h, static_c))
             output = self.static_adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
+            h_t = torch.cat([h_t.squeeze(), static_enrichment_vec])
         else:
             output, (h_t, c_t) = self.lstm(x)
             output = self.adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
-        h_t = torch.cat([h_t.squeeze(), static_enrichment_vec])
         logits = self.logits(h_t)
         return logits, output
 
