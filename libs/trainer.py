@@ -107,8 +107,10 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             zis = temp_cont_feat1
             zjs = temp_cont_feat2
         else:
-            if static_use:
+            if static_use and encoder_model_type == 'CNN':
                 output = encoder(observed_real, static_vec)
+            elif static_use and encoder_model_type == 'LSTM':
+                output = encoder(observed_real, static_vec, static_context_enrichment)
             else:
                 output = encoder(observed_real)
 
