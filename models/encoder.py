@@ -84,19 +84,20 @@ class lstm_encoder(nn.Module):
         self.adaptive_pooling = nn.AdaptiveAvgPool1d(self.feature_len)
         self.static_adaptive_pooling = nn.AdaptiveAvgPool1d(self.feature_len + 1)
         self.logits = nn.Linear(self.output_dim, self.num_classes)
+        self.static_logits = nn.Linear(self.output_dim * 2, self.num_classes)
 
     def forward(self, x, static_vec=None, static_enrichment_vec=None):
-        # static_encoder, static_weights = self.static_combine_and_mask(embedding)
         if self.static_info:
             static_h = self.static_context_state_h(static_vec.unsqueeze(0))
             static_c = self.static_context_state_c(static_vec.unsqueeze(0))
             output, (h_t, c_t) = self.lstm(x, (static_h, static_c))
             output = self.static_adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
-            h_t = torch.cat([h_t.squeeze(), static_enrichment_vec])
+            h_t = torch.cat([h_t.squeeze(), static_enrichment_vec], dim=1)
+            logits = self.static_logits(h_t)
         else:
             output, (h_t, c_t) = self.lstm(x)
             output = self.adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
-        logits = self.logits(h_t)
+            logits = self.logits(h_t)
         return logits, output
 
 if __name__ == '__main__':
@@ -121,6 +122,6 @@ if __name__ == '__main__':
     static_embedding = static_embedding_model(static)
     static_context_enrichment, static_vec, sparse_weights = static_variable_selection_model(static_embedding)
     logits, output = model(observed_real.float(), static_vec, static_context_enrichment)
-    print(logits.shape, output.shape)
+    print(logits.shape, output.shape, y.shape)
     # LSTM - (1, 512, 20), (512, 32, 30)
     # CNN - (512, 20), (512, 32, 30)
