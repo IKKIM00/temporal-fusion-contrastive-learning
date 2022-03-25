@@ -76,12 +76,20 @@ class StaticVariableSelection(nn.Module):
         self.device = device
 
         self.flatten = nn.Flatten()
+        self.trans_emb_grn = nn.ModuleList()
+        for i in range(self.input_size):
+            e = gated_residual_network(input_dim=self.output_dim,
+                                       hidden_dim=self.output_dim)
+            self.trans_emb_grn.append(e)
+
         self.grn0 = gated_residual_network(input_dim=self.input_size * self.output_dim,
-                                          hidden_dim=self.output_dim,
-                                          output_dim=self.input_size,
-                                          droupout_rate=self.dropout)
-        self.grn1 = gated_residual_network(input_dim=self.output_dim,
-                                           hidden_dim=self.output_dim)
+                                           hidden_dim=self.output_dim,
+                                           output_dim=self.input_size,
+                                           droupout_rate=self.dropout)
+        self.static_context_enrichment = gated_residual_network(input_dim=self.output_dim,
+                                                        hidden_dim=self.output_dim)
+        self.static_context_variable = gated_residual_network(input_dim=self.output_dim,
+                                                              hidden_dim=self.output_dim)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, embedding):
@@ -96,15 +104,14 @@ class StaticVariableSelection(nn.Module):
         sparse_weights = torch.unsqueeze(sparse_weights, dim=-1)
 
         trans_emb_list = []
-        for i in range(num_statics):
-            e = gated_residual_network(input_dim=self.output_dim,
-                                       hidden_dim=self.output_dim).to(self.device)(embedding[:, i:i + 1, :])
+        for i in range(self.input_size):
+            e = self.trans_emb_grn[i](embedding[:, i:i + 1, :])
             trans_emb_list.append(e)
         transformed_embedding = torch.cat(trans_emb_list, dim=1)
         combined = torch.mul(sparse_weights, transformed_embedding)
         static_vec = torch.sum(combined, dim=1)
-        static_context_enrichment = self.grn1(static_vec)
-        return static_context_enrichment, static_vec, sparse_weights
+
+        return self.static_context_variable(static_vec), self.static_context_enrichment(static_vec)
 
 
 if __name__ == '__main__':
@@ -123,9 +130,7 @@ if __name__ == '__main__':
     device = 'cpu'
     static_embedding_model = StaticEmbedding(model_params, device)
     embedding = static_embedding_model(static)
+    print(embedding.shape)
     static_variable_selection_model = StaticVariableSelection(model_params, device)
-    static_vec, static_weight = static_variable_selection_model(embedding)
-    print(static_vec.shape)
-    grn = gated_residual_network(model_params['output_dim'], model_params['output_dim'])
-    grn_output = grn(static_vec)
-    print(grn_output.shape)
+    static_context_variable, static_context_enrichment = static_variable_selection_model(embedding)
+    print(static_context_variable.shape, static_context_enrichment.shape)

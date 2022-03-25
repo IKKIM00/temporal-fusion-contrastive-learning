@@ -126,7 +126,6 @@ class MobiactFormatter(BaseForamtter):
             'batch_size': 512,
             'timestep': 10,
             'num_classes': 20,
-            'lr': 3e-4,
             'beta1': 0.9,
             'beta2': 0.99,
             'drop_last': True
@@ -138,6 +137,7 @@ class MobiactFormatter(BaseForamtter):
         }
         loss_params = {
             'num_epoch': 500,
+            'lr': 0.001,
             'batch_size': 512,
             'temperature': 0.2,
             'use_cosine_similarity': True

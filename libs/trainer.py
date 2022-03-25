@@ -4,10 +4,10 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 import torch
-import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
 
-from models.loss import NTXentLoss, FocalLoss
+from models.loss import NTXentLoss
 
 import warnings
 
@@ -19,11 +19,13 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
             loss_params, loss_func, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
 
+    params = dict(loss_params)
     best_loss = 99999999999
     train_best_loss = 999999999
     patience = 0
 
-    params = dict(loss_params)
+    encoder_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, mode='min', patience=2, factor=0.95)
+
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
             break
@@ -32,6 +34,9 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection,
                                                               encoder_model_type, valid_loader, device, training_mode, loss_func, static_use)
+
+        if training_mode != "self_supervised":
+            encoder_lr_scheduler.step(valid_loss)
 
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
@@ -91,21 +96,25 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             static_embedding_optimizer.zero_grad()
             static_variable_selection_optimizer.zero_grad()
             static_embedding = static_embedding_model(static_input.to(device))
-            static_context_enrichment, static_vec, sparse_weights = static_variable_selection(static_embedding)
+            static_context_variable, static_context_enrichment  = static_variable_selection(static_embedding)
 
         if training_mode == "self_supervised":
             if static_use and encoder_model_type == 'CNN':
-                predictions1, features1 = encoder(aug1, static_context_enrichment)
-                predictions2, features2 = encoder(aug2, static_context_enrichment)
-            elif static_use and encoder_model_type == 'LSTM':
-                predictions1, features1 = encoder(aug1, static_vec, static_context_enrichment)
-                predictions2, features2 = encoder(aug2, static_vec, static_context_enrichment)
+                predictions1, features1 = encoder(aug1, static_context_variable)
+                predictions2, features2 = encoder(aug2, static_context_variable)
+            # elif static_use and encoder_model_type == 'LSTM':
+            #     predictions1, features1 = encoder(aug1, static_vec, static_context_enrichment)
+            #     predictions2, features2 = encoder(aug2, static_vec, static_context_enrichment)
             else:
                 predictions1, features1 = encoder(aug1)
                 predictions2, features2 = encoder(aug2)
 
             features1 = F.normalize(features1, dim=1)
             features2 = F.normalize(features2, dim=1)
+
+            if static_use:
+                features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
+                features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
 
             temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2)
             temp_cont_loss2, temp_cont_feat2 = tfcc_model(features1, features2)
