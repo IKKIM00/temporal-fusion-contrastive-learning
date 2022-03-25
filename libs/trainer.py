@@ -96,7 +96,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             static_embedding_optimizer.zero_grad()
             static_variable_selection_optimizer.zero_grad()
             static_embedding = static_embedding_model(static_input.to(device))
-            static_context_variable, static_context_enrichment  = static_variable_selection(static_embedding)
+            static_context_variable, static_context_enrichment = static_variable_selection(static_embedding)
 
         if training_mode == "self_supervised":
             if static_use and encoder_model_type == 'CNN':
@@ -123,9 +123,9 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
             zjs = temp_cont_feat2
         else:
             if static_use and encoder_model_type == 'CNN':
-                output = encoder(observed_real, static_vec)
-            elif static_use and encoder_model_type == 'LSTM':
-                output = encoder(observed_real, static_vec, static_context_enrichment)
+                output = encoder(observed_real, static_context_variable)
+            # elif static_use and encoder_model_type == 'LSTM':
+            #     output = encoder(observed_real, static_vec, static_context_enrichment)
             else:
                 output = encoder(observed_real)
 
@@ -177,15 +177,15 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
 
             if static_use:
                 static_embedding = static_embedding_model(static_input.to(device))
-                static_context_enrichment, static_vec, sparse_weights = static_variable_selection(static_embedding)
+                static_context_variable, static_context_enrichment = static_variable_selection(static_embedding)
 
             if training_mode == "self_supervised":
                 pass
             else:
                 if static_use and encoder_model_type == 'CNN':
-                    output = encoder(data, static_context_enrichment)
-                elif static_use and encoder_model_type == 'LSTM':
-                    output = encoder(data, static_vec, static_context_enrichment)
+                    output = encoder(data, static_context_variable)
+                # elif static_use and encoder_model_type == 'LSTM':
+                #     output = encoder(data, static_vec, static_context_enrichment)
                 else:
                     output = encoder(data)
 
