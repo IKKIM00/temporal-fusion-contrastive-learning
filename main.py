@@ -110,22 +110,26 @@ if training_mode != "self_supervised":
     # load saved model
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
-    pretrained_dict = chkpoint["model_state_dict"]
+    encoder_pretrained_dict = chkpoint["model_state_dict"]
+    static_embedding_pretrained_dict = chkpoint["static_embedding_model_state_dict"]
+    static_variable_selectoin_pretrained_dict = chkpoint["static_variable_selection_model_state_dict"]
     model_dict = encoder.state_dict()
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
         lr /= 10
-        pretrained_dict_copy = pretrained_dict.copy()
+        pretrained_dict_copy = encoder_pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
             for j in del_list:
                 if j in i:
-                    del pretrained_dict[i]
-        model_dict.update(pretrained_dict)
+                    del encoder_pretrained_dict[i]
+        model_dict.update(encoder_pretrained_dict)
         encoder.load_state_dict(model_dict)
+        static_embedding_model.load_state_dict(static_embedding_pretrained_dict)
+        static_variable_selection.load_state_dict(static_variable_selectoin_pretrained_dict)
 
     if training_mode == 'train_linear':
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
         pretrained_dict_copy = pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
             for j in del_list:
@@ -133,7 +137,11 @@ if training_mode != "self_supervised":
                     del pretrained_dict[i]
         model_dict.update(pretrained_dict)
         encoder.load_state_dict(model_dict)
+        static_embedding_model.load_state_dict(static_embedding_pretrained_dict)
+        static_variable_selection.load_state_dict(static_variable_selectoin_pretrained_dict)
         set_requires_grad(encoder, pretrained_dict, requires_grad=False)
+        set_requires_grad(static_embedding_model, static_embedding_pretrained_dict, requires_grad=False)
+        set_requires_grad(static_variable_selection, static_variable_selectoin_pretrained_dict, requires_grad=False)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 tfcc_optimizer = torch.optim.Adam(tfcc_model.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)

@@ -47,7 +47,9 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
             train_best_loss = train_loss
             os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
             chkpoint = {'model_state_dict': encoder.state_dict(),
-                        'temporal_contr_model_state_dict': tfcc_model.state_dict()}
+                        'temporal_contr_model_state_dict': tfcc_model.state_dict(),
+                        'static_embedding_model_state_dict': static_embedding_model.state_dict(),
+                        'static_variable_selection_model_state_dict': static_variable_selection.state_dict()}
             torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
         if training_mode != "self_supervised" and valid_loss < best_loss:
@@ -56,14 +58,24 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
             best_loss = valid_loss
             os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
             chkpoint = {'model_state_dict': encoder.state_dict(),
-                        'temporal_contr_model_state_dict': tfcc_model.state_dict()}
+                        'temporal_contr_model_state_dict': tfcc_model.state_dict(),
+                        'static_embedding_model_state_dict': static_embedding_model.state_dict(),
+                        'static_variable_selection_model_state_dict': static_variable_selection.state_dict()}
             torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+            best_encoder_model = encoder
+            best_tfcc_model = tfcc_model
+            best_static_embedding_model = static_embedding_model
+            best_variable_selection_model = static_variable_selection
         elif training_mode != "self_supervised" and valid_loss > best_loss:
             patience += 1
 
     if training_mode != "self_supervised":  # no need to run the evaluation for self-supervised mode.
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
+        encoder = best_encoder_model
+        tfcc_model = best_tfcc_model
+        static_embedding_model = best_static_embedding_model
+        static_variable_selection = best_variable_selection_model
         test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_embedding_model,
                                                                           static_variable_selection, encoder_model_type, test_loader, device,
                                                                           training_mode, loss_func, static_use)
