@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.loss import NTXentLoss
+from models.loss import NTXentLoss, FocalLoss
 
 import warnings
 
@@ -16,24 +16,22 @@ warnings.filterwarnings('always')
 
 def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer, tfcc_optimizer,
             static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
-            loss_params, experiment_log_dir, training_mode, static_use=True):
+            loss_params, loss_func, experiment_log_dir, training_mode, static_use=True):
     logger.debug("Training started ....")
 
     best_loss = 99999999999
     train_best_loss = 999999999
     patience = 0
 
-    criterion = nn.CrossEntropyLoss()
     params = dict(loss_params)
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
             break
         train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type,
                                             encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer,
-                                            criterion, train_loader, loss_params, device, training_mode, static_use)
-        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model,
-                                                              static_variable_selection, encoder_model_type, valid_loader, device,
-                                                              training_mode, static_use)
+                                            loss_func, train_loader, loss_params, device, training_mode, static_use)
+        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection,
+                                                              encoder_model_type, valid_loader, device, training_mode, loss_func, static_use)
 
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
@@ -63,7 +61,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         logger.debug('\nEvaluate on the Test set:')
         test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_embedding_model,
                                                                           static_variable_selection, encoder_model_type, test_loader, device,
-                                                                          training_mode, static_use)
+                                                                          training_mode, loss_func, static_use)
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
 
@@ -152,7 +150,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
 
 
 def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, test_loader, device,
-                   training_mode, static_use):
+                   training_mode, criterion, static_use):
     encoder.eval()
     tfcc_model.eval()
     static_embedding_model.eval()
@@ -161,7 +159,6 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
     total_loss = []
     total_acc = []
 
-    criterion = nn.CrossEntropyLoss()
     outs = np.array([])
     trgs = np.array([])
 

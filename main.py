@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 
 import os
 import numpy as np
@@ -7,6 +8,7 @@ import matplotlib.pyplot as plt
 import argparse
 from libs.utils import _logger, set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
+from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
 from models.TFCC import TFCC
@@ -28,6 +30,7 @@ parser.add_argument('--seed', default=42, type=int,
 parser.add_argument('--encoder_model', default='CNN', type=str)
 parser.add_argument('--training_mode', default='supervised', type=str,
                     help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
+parser.add_argument('--loss_func', default='cross_entropy', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--selected_dataset', default='mobiact', type=str)
 parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
@@ -44,6 +47,7 @@ experiment_description = args.experiment_description
 data_type = args.selected_dataset
 training_mode = args.training_mode
 method = 'TS-TCC'
+loss_func = args.loss_func
 run_description = args.run_description
 encoder_model = args.encoder_model
 static_use = args.static_use
@@ -91,6 +95,10 @@ logger.debug("Data loaded ...")
 
 encoders = {'CNN': cnn_encoder(model_params, static_use).to(device),
             'LSTM': lstm_encoder(model_params, static_info=static_use).to(device)}
+loss_funcs = {
+    'cross_entropy': nn.CrossEntropyLoss(),
+    'focal': FocalLoss()
+}
 
 static_embedding_model = StaticEmbedding(model_params, device).to(device)
 static_variable_selection = StaticVariableSelection(model_params, device).to(device)
@@ -140,7 +148,7 @@ if training_mode == "self_supervised":
 
 Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, encoder_optimizer, tfcc_optimizer,
         static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
-        experiment_log_dir, training_mode, static_use=True)
+        loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=True)
 
 if training_mode != "self_supervised":
     outs = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, test_loader, device,
