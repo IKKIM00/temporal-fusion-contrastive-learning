@@ -20,6 +20,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     logger.debug("Training started ....")
 
     best_loss = 99999999999
+    train_best_loss = 999999999
     patience = 0
 
     criterion = nn.CrossEntropyLoss()
@@ -37,6 +38,12 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
                      f'Valid Loss     : {valid_loss:.4f}\t | \tValid Accuracy     : {valid_acc:2.4f}')
+
+        if training_mode == "self_supervised" and train_loss < train_best_loss:
+            os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
+            chkpoint = {'model_state_dict': encoder.state_dict(),
+                        'temporal_contr_model_state_dict': tfcc_model.state_dict()}
+            torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
         if training_mode != "self_supervised" and valid_loss < best_loss:
             logger.debug(f'#################### Saving new model ####################')
