@@ -98,7 +98,7 @@ class lstm_encoder(nn.Module):
             output, (h_t, c_t) = self.lstm(x)
         output = self.adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
         logits = self.logits(h_t)
-        return logits, output
+        return logits.squeeze(), output
 
 if __name__ == '__main__':
     from data_formatters.mobiact import MobiactFormatter
@@ -111,18 +111,19 @@ if __name__ == '__main__':
     model_params, aug_params, loss_params = dataformatter.get_experiment_params()
 
     train_loader, _, _ = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
-                                        model_params, aug_params, 'mobiact', 'CNN', 'self_supervised')
+                                        model_params, aug_params, 'mobiact', 'LSTM', 'train_linear')
     dataiter = iter(train_loader)
     observed_real, y, aug1, aug2, static = dataiter.next()
 
-    model = cnn_encoder(model_params, static_use=True)
-    # model = lstm_encoder(model_params, static_info=True)
+    # model = cnn_encoder(model_params, static_use=True)
+    model = lstm_encoder(model_params, static_info=False)
     static_embedding_model = StaticEmbedding(model_params, 'cpu')
     static_variable_selection_model = StaticVariableSelection(model_params, 'cpu')
     static_embedding = static_embedding_model(static)
     static_context_enrichment, static_vec, sparse_weights = static_variable_selection_model(static_embedding)
-    logits, output = model(observed_real.float(), static_vec)
+    # logits, output = model(observed_real.float(), static_vec)
     # logits, output = model(observed_real.float(), static_vec, static_context_enrichment)
+    logits, output = model(observed_real.float())
     print(logits.shape, output.shape, y.shape)
     # LSTM - (1, 512, 20), (512, 32, 30)
     # CNN - (512, 20), (512, 32, 30)
