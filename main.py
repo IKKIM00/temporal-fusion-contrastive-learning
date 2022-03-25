@@ -103,7 +103,7 @@ if training_mode == "fine_tune":
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     pretrained_dict = chkpoint["model_state_dict"]
     model_dict = encoder.state_dict()
-    del_list = ['logits', 'static_logits']
+    del_list = ['logits']
     pretrained_dict_copy= pretrained_dict.copy()
     for i in pretrained_dict_copy.keys():
         for j in del_list:
@@ -120,7 +120,7 @@ if training_mode == 'train_linear' or "tl" in training_mode:
 
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
 
-    del_list = ['logits', 'static_logits']
+    del_list = ['logits']
     pretrained_dict_copy = pretrained_dict.copy()
     for i in pretrained_dict_copy.keys():
         for j in del_list:
