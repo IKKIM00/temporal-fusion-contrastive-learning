@@ -105,9 +105,10 @@ static_variable_selection = StaticVariableSelection(model_params, device).to(dev
 encoder = encoders[encoder_model]
 tfcc_model = TFCC(model_params, device).to(device)
 
+lr = loss_params['self_supervised_lr']
+
 if training_mode != "self_supervised":
     # load saved model
-    lr = loss_params['self_supervised_lr']
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
@@ -151,7 +152,6 @@ static_variable_selection_optimizer = torch.optim.Adam(static_variable_selection
 
 
 if training_mode == "self_supervised":
-    lr = loss_params['non_self_supervised_lr']
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
 Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, encoder_optimizer, tfcc_optimizer,
