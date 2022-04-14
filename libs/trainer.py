@@ -14,6 +14,7 @@ import warnings
 warnings.filterwarnings('always')
 
 
+# +
 def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer, tfcc_optimizer,
             static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
             loss_params, loss_func, experiment_log_dir, training_mode, static_use=True):
@@ -24,7 +25,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     train_best_loss = 999999999
     patience = 0
 
-    encoder_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, mode='min', patience=2, factor=0.95)
+#     encoder_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, mode='min', patience=2, factor=0.95)
 
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
@@ -35,8 +36,8 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection,
                                                               encoder_model_type, valid_loader, device, training_mode, loss_func, static_use)
 
-        if training_mode != "self_supervised":
-            encoder_lr_scheduler.step(valid_loss)
+#         if training_mode != "self_supervised":
+#             encoder_lr_scheduler.step(valid_loss)
 
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
@@ -84,6 +85,8 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
 
     logger.debug("\n################## Training is Done! #########################")
 
+
+# -
 
 def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer,
                 tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, criterion, train_loader, loss_params, device,

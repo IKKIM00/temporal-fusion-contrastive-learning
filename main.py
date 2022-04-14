@@ -117,7 +117,7 @@ if training_mode != "self_supervised":
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
-        lr /= 10
+#         lr /= 10
         pretrained_dict_copy = encoder_pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
             for j in del_list:
