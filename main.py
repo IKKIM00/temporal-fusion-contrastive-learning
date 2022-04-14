@@ -99,7 +99,6 @@ loss_funcs = {
     'cross_entropy': nn.CrossEntropyLoss(),
     'focal': FocalLoss()
 }
-lr = loss_params['lr']
 
 static_embedding_model = StaticEmbedding(model_params, device).to(device)
 static_variable_selection = StaticVariableSelection(model_params, device).to(device)
@@ -108,6 +107,7 @@ tfcc_model = TFCC(model_params, device).to(device)
 
 if training_mode != "self_supervised":
     # load saved model
+    lr = loss_params['self_supervised_lr']
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
@@ -117,7 +117,7 @@ if training_mode != "self_supervised":
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
-#         lr /= 10
+        lr = loss_params['non_self_supervised_lr']
         pretrained_dict_copy = encoder_pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
             for j in del_list:
@@ -129,6 +129,7 @@ if training_mode != "self_supervised":
         static_variable_selection.load_state_dict(static_variable_selectoin_pretrained_dict)
 
     if training_mode == 'train_linear':
+        lr = loss_params['non_self_supervised_lr']
         pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
         pretrained_dict_copy = pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
@@ -150,6 +151,7 @@ static_variable_selection_optimizer = torch.optim.Adam(static_variable_selection
 
 
 if training_mode == "self_supervised":
+    lr = loss_params['non_self_supervised_lr']
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
 Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, encoder_optimizer, tfcc_optimizer,

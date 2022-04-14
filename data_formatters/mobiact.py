@@ -118,14 +118,13 @@ class MobiactFormatter(BaseForamtter):
             'kernel_size': 43,
             'stride': 1,
             'hidden_dim': 64,
-            'output_dim': 32,
+            'output_dim': 64,
             'dropout': 0.35,
-            'n_predicts': 12,
             'feature_len': 29,
             'num_epoch': 300,
             'batch_size': 512,
             'timestep': 10,
-            'num_classes': 20,
+            'num_classes': 16,
             'beta1': 0.9,
             'beta2': 0.99,
             'drop_last': True
@@ -137,7 +136,8 @@ class MobiactFormatter(BaseForamtter):
         }
         loss_params = {
             'num_epoch': 300,
-            'lr': 0.001,
+            'self_supervised_lr': 0.001,
+            'non_self_supervised_lr': 0.0001,
             'batch_size': 512,
             'temperature': 0.2,
             'use_cosine_similarity': True
