@@ -8,17 +8,17 @@ class TFCC(nn.Module):
         super(TFCC, self).__init__()
 
         params = dict(model_params)
-        self.output_dim = int(params['output_dim'])
+        self.output_dim = int(params['encoder_output_dim'])
         self.timestep = int(params['timestep'])
         self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim']), self.output_dim) for i in range(self.timestep)])
         self.lsoftmax = nn.LogSoftmax(dim=1)
         self.device = device
 
         self.projection_head = nn.Sequential(
-            nn.Linear(int(params['hidden_dim']), int(params['output_dim']) // 2),
-            nn.BatchNorm1d(int(params['output_dim']) // 2),
+            nn.Linear(int(params['hidden_dim']), int(params['encoder_output_dim']) // 2),
+            nn.BatchNorm1d(int(params['encoder_output_dim']) // 2),
             nn.ReLU(inplace=True),
-            nn.Linear(int(params['output_dim']) // 2, int(params['output_dim']) // 4)
+            nn.Linear(int(params['encoder_output_dim']) // 2, int(params['encoder_output_dim']) // 4)
         )
         self.seq_transformer = Seq_Transformer(patch_size=self.output_dim, dim=int(params['hidden_dim']), depth=4, heads=4, mlp_dim=64)
 

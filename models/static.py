@@ -13,7 +13,7 @@ class StaticEncoder(nn.Module):
         self.static_embedding = StaticEmbedding(model_params, device)
         self.static_variable_selection = StaticVariableSelection(model_params, device)
 
-    def foward(self, static_input):
+    def forward(self, static_input):
         static_embedding = self.static_embedding(static_input)
         context_variable, context_enrichment = self.static_variable_selection(static_embedding)
         return context_variable, context_enrichment

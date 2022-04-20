@@ -65,7 +65,7 @@ class lstm_encoder(nn.Module):
         params = dict(model_params)
 
         self.input_dim = int(params['input_size'])
-        self.output_dim = int(params['output_dim'])
+        self.output_dim = int(params['encoder_output_dim'])
         self.feature_len = int(params['feature_len'])
         self.dropout = float(params['dropout'])
         self.num_classes = int(params['num_classes'])
