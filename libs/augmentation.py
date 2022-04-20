@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+
 def TSTCCDataTransform(sample, aug_params):
 
     params = dict(aug_params)
@@ -40,7 +41,7 @@ def permutation(x, max_segments=5, seg_mode="random"):
             else:
                 splits = np.array_split(orig_steps, num_segs[i])
             warp = np.concatenate(np.random.permutation(splits)).ravel()
-            ret[i] = pat[0,warp]
+            ret[i] = pat[0, warp]
         else:
             ret[i] = pat
     return torch.from_numpy(ret)

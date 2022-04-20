@@ -7,7 +7,6 @@ from libs.augmentation import TSTCCDataTransform
 
 
 class MobiActDataset(Dataset):
-    # Initialize your data, download, etc.
     def __init__(self, X_data, y_data, aug_params, model_type, training_mode):
         super(MobiActDataset, self).__init__()
         self.training_mode = training_mode
@@ -37,7 +36,7 @@ class MobiActDataset(Dataset):
         return self.len
 
 
-def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, model_params, aug_params, data_type, model_type, training_mode):
+def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params, data_type, model_type, training_mode):
 
     choose_dataset = {'mobiact': MobiActDataset}
 
@@ -45,15 +44,16 @@ def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, model_par
     valid_dataset = choose_dataset[data_type](X_valid, y_valid, aug_params, model_type, training_mode)
     test_dataset = choose_dataset[data_type](X_test, y_test, aug_params, model_type, training_mode)
 
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=model_params['batch_size'],
-                                               shuffle=True, drop_last=model_params['drop_last'],
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=aug_params['batch_size'],
+                                               shuffle=True, drop_last=aug_params['drop_last'],
                                                num_workers=0)
-    valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, batch_size=model_params['batch_size'] // 2,
-                                               shuffle=False, drop_last=model_params['drop_last'],
+    valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, batch_size=aug_params['batch_size'] // 2,
+                                               shuffle=False, drop_last=aug_params['drop_last'],
                                                num_workers=0)
 
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=model_params['batch_size'],
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=aug_params['batch_size'],
                                               shuffle=False, drop_last=False,
                                               num_workers=0)
 
     return train_loader, valid_loader, test_loader
+

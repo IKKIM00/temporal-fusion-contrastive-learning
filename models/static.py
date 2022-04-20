@@ -5,6 +5,19 @@ import torch
 import torch.nn as nn
 from models.grn import gated_residual_network
 
+
+class StaticEncoder(nn.Module):
+    def __init__(self, model_params, device):
+        super(StaticEncoder, self).__init__()
+
+        self.static_embedding = StaticEmbedding(model_params, device)
+        self.static_variable_selection = StaticVariableSelection(model_params, device)
+
+    def foward(self, static_input):
+        static_embedding = self.static_embedding(static_input)
+        context_variable, context_enrichment = self.static_variable_selection(static_embedding)
+        return context_variable, context_enrichment
+
 class StaticEmbedding(nn.Module):
     """
     Transform static data into static input.
@@ -21,7 +34,7 @@ class StaticEmbedding(nn.Module):
         params = dict(model_params)
 
         self.column_definition = params['column_definition']
-        self.output_dim = int(params['output_dim'])
+        self.output_dim = int(params['encoder_output_dim'])
         self.category_counts = json.loads(str(params['category_counts']))   # 각 categorical value들의 category 종류 개수
         self._static_regular_inputs = json.loads(str(params['static_regular_inputs']))
         self._static_categorical_inputs = json.loads(str(params['static_categorical_inputs']))
@@ -40,6 +53,7 @@ class StaticEmbedding(nn.Module):
                 num_embeddings=self.category_counts[i],
                 embedding_dim=embedding_sizes[i]).to(device)
             self.embeddings.append(embedding)
+
         self.emb_regulars = nn.ModuleList()
         for i in range(self.num_regular_variables):
             emb_reg = nn.Linear(1, self.output_dim).to(device)
@@ -69,9 +83,8 @@ class StaticVariableSelection(nn.Module):
         super(StaticVariableSelection, self).__init__()
 
         self.input_size = len(json.loads(str(model_params['static_regular_inputs']))) + len(json.loads(str(model_params['static_categorical_inputs'])))
-        self.output_dim = int(model_params['output_dim'])
+        self.output_dim = int(model_params['encoder_output_dim'])
         self.dropout = float(model_params['dropout'])
-        self.batch_size = int(model_params['batch_size'])
         self.feature_len = int(model_params['feature_len'])
         self.device = device
 

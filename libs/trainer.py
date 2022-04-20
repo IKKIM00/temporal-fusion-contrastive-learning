@@ -14,10 +14,10 @@ import warnings
 warnings.filterwarnings('always')
 
 
-# +
-def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer, tfcc_optimizer,
-            static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger,
+def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_optimizer, tfcc_optimizer,
+            static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger,
             loss_params, loss_func, experiment_log_dir, training_mode, static_use=True):
+
     logger.debug("Training started ....")
 
     params = dict(loss_params)
@@ -25,15 +25,15 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
     train_best_loss = 999999999
     patience = 0
 
-#     encoder_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, mode='min', patience=2, factor=0.95)
+    # encoder_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, mode='min', patience=2, factor=0.95)
 
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
             break
-        train_loss, train_acc = model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type,
-                                            encoder_optimizer, tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer,
+        train_loss, train_acc = model_train(encoder, tfcc_model, static_encoder, encoder_model_type,
+                                            encoder_optimizer, tfcc_optimizer, static_encoder_optimizer,
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
-        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection,
+        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_encoder,
                                                               encoder_model_type, valid_loader, device, training_mode, loss_func, static_use)
 
 #         if training_mode != "self_supervised":
@@ -49,8 +49,7 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
             os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
             chkpoint = {'model_state_dict': encoder.state_dict(),
                         'temporal_contr_model_state_dict': tfcc_model.state_dict(),
-                        'static_embedding_model_state_dict': static_embedding_model.state_dict(),
-                        'static_variable_selection_model_state_dict': static_variable_selection.state_dict()}
+                        'static_encoder_model_state_dict': static_encoder.state_dict()}
             torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
         if training_mode != "self_supervised" and valid_loss < best_loss:
@@ -60,13 +59,11 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
             os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
             chkpoint = {'model_state_dict': encoder.state_dict(),
                         'temporal_contr_model_state_dict': tfcc_model.state_dict(),
-                        'static_embedding_model_state_dict': static_embedding_model.state_dict(),
-                        'static_variable_selection_model_state_dict': static_variable_selection.state_dict()}
+                        'static_encoder_model_state_dict': static_encoder.state_dict()}
             torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
             best_encoder_model = encoder
             best_tfcc_model = tfcc_model
-            best_static_embedding_model = static_embedding_model
-            best_variable_selection_model = static_variable_selection
+            best_static_encoder_model = static_encoder
         elif training_mode != "self_supervised" and valid_loss > best_loss:
             patience += 1
 
@@ -75,10 +72,9 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
         logger.debug('\nEvaluate on the Test set:')
         encoder = best_encoder_model
         tfcc_model = best_tfcc_model
-        static_embedding_model = best_static_embedding_model
-        static_variable_selection = best_variable_selection_model
-        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_embedding_model,
-                                                                          static_variable_selection, encoder_model_type, test_loader, device,
+        static_encoder_model = best_static_encoder_model
+        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_encoder_model,
+                                                                          encoder_model_type, test_loader, device,
                                                                           training_mode, loss_func, static_use)
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
@@ -88,16 +84,15 @@ def Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selecti
 
 # -
 
-def model_train(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, encoder_optimizer,
-                tfcc_optimizer, static_embedding_optimizer, static_variable_selection_optimizer, criterion, train_loader, loss_params, device,
+def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_optimizer,
+                tfcc_optimizer, static_encoder_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
     total_acc = []
     encoder.train()
     tfcc_model.train()
     if static_use:
-        static_embedding_model.train()
-        static_variable_selection.train()
+        static_encoder.train()
 
     for batch_idx, (observed_real, labels, aug1, aug2, static_input) in enumerate(train_loader):
         observed_real, labels = observed_real.float().to(device), labels.long().to(device)
@@ -108,10 +103,8 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
         tfcc_optimizer.zero_grad()
 
         if static_use:
-            static_embedding_optimizer.zero_grad()
-            static_variable_selection_optimizer.zero_grad()
-            static_embedding = static_embedding_model(static_input.to(device))
-            static_context_variable, static_context_enrichment = static_variable_selection(static_embedding)
+            static_encoder_optimizer.zero_grad()
+            static_context_variable, static_context_enrichment = static_encoder(static_input.to(device))
 
         if training_mode == "self_supervised":
             if static_use and encoder_model_type == 'CNN':
@@ -161,8 +154,7 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
         encoder_optimizer.step()
         tfcc_optimizer.step()
         if static_use:
-            static_embedding_optimizer.step()
-            static_variable_selection_optimizer.step()
+            static_encoder_optimizer.step()
 
     total_loss = torch.tensor(total_loss).mean()
 
@@ -173,12 +165,11 @@ def model_train(encoder, tfcc_model, static_embedding_model, static_variable_sel
     return total_loss, total_acc
 
 
-def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model_type, test_loader, device,
+def model_evaluate(encoder, tfcc_model, static_encoder, encoder_model_type, test_loader, device,
                    training_mode, criterion, static_use):
     encoder.eval()
     tfcc_model.eval()
-    static_embedding_model.eval()
-    static_variable_selection.eval()
+    static_encoder.eval()
 
     total_loss = []
     total_acc = []
@@ -191,8 +182,7 @@ def model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_
             data, labels = observed_real.float().to(device), labels.long().to(device)
 
             if static_use:
-                static_embedding = static_embedding_model(static_input.to(device))
-                static_context_variable, static_context_enrichment = static_variable_selection(static_embedding)
+                static_context_variable, static_context_enrichment = static_encoder(static_input.to(device))
 
             if training_mode == "self_supervised":
                 pass

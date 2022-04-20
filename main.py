@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -13,8 +14,11 @@ from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
 from models.TFCC import TFCC
 from models.encoder import cnn_encoder, lstm_encoder
-from models.static import StaticEmbedding, StaticVariableSelection
+from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
+
+import warnings
+warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
 start_time = datetime.now()
 
@@ -41,7 +45,6 @@ parser.add_argument('--home_path', default=home_dir, type=str,
                     help='Project home directory')
 args = parser.parse_args()
 
-# +
 device = torch.device(args.device)
 experiment_description = args.experiment_description
 data_type = args.selected_dataset
@@ -53,7 +56,6 @@ encoder_model = args.encoder_model
 static_use = args.static_use
 
 print(f"Args: {args}")
-# -
 
 SEED = args.seed
 torch.manual_seed(SEED)
@@ -89,7 +91,12 @@ dataset_dir = 'datasets/' + config.data_csv_path
 X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir)
 model_params, aug_params, loss_params = formatter.get_experiment_params()
 
-train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, model_params, aug_params, data_type, encoder_model, training_mode)
+model_params_df = pd.DataFrame.from_dict(model_params, orient='index')
+aug_params_df = pd.DataFrame.from_dict(aug_params, orient='index')
+loss_params_df = pd.DataFrame.from_dict(loss_params, orient='index')
+
+train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
+                                                         data_type, encoder_model, training_mode)
 logger.debug("Data loaded ...")
 #########################
 
@@ -100,25 +107,22 @@ loss_funcs = {
     'focal': FocalLoss()
 }
 
-static_embedding_model = StaticEmbedding(model_params, device).to(device)
-static_variable_selection = StaticVariableSelection(model_params, device).to(device)
+static_encoder = StaticEncoder(model_params, device).to(device)
 encoder = encoders[encoder_model]
 tfcc_model = TFCC(model_params, device).to(device)
 
-lr = loss_params['self_supervised_lr']
+lr = loss_params['lr']
 
 if training_mode != "self_supervised":
     # load saved model
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
-    static_embedding_pretrained_dict = chkpoint["static_embedding_model_state_dict"]
-    static_variable_selectoin_pretrained_dict = chkpoint["static_variable_selection_model_state_dict"]
+    static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]
     model_dict = encoder.state_dict()
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
-        lr = loss_params['non_self_supervised_lr']
         pretrained_dict_copy = encoder_pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
             for j in del_list:
@@ -126,11 +130,9 @@ if training_mode != "self_supervised":
                     del encoder_pretrained_dict[i]
         model_dict.update(encoder_pretrained_dict)
         encoder.load_state_dict(model_dict)
-        static_embedding_model.load_state_dict(static_embedding_pretrained_dict)
-        static_variable_selection.load_state_dict(static_variable_selectoin_pretrained_dict)
+        static_encoder.load_state_dict(static_encoder_model_state_dict)
 
     if training_mode == 'train_linear':
-        lr = loss_params['non_self_supervised_lr']
         pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
         pretrained_dict_copy = pretrained_dict.copy()
         for i in pretrained_dict_copy.keys():
@@ -139,27 +141,24 @@ if training_mode != "self_supervised":
                     del pretrained_dict[i]
         model_dict.update(pretrained_dict)
         encoder.load_state_dict(model_dict)
-        static_embedding_model.load_state_dict(static_embedding_pretrained_dict)
-        static_variable_selection.load_state_dict(static_variable_selectoin_pretrained_dict)
+        static_encoder.load_state_dict(static_encoder_model_state_dict)
         set_requires_grad(encoder, pretrained_dict, requires_grad=False)
-        set_requires_grad(static_embedding_model, static_embedding_pretrained_dict, requires_grad=False)
-        set_requires_grad(static_variable_selection, static_variable_selectoin_pretrained_dict, requires_grad=False)
+        # set_requires_grad(static_encoder, static_encoder_model_state_dict, requires_grad=False)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 tfcc_optimizer = torch.optim.Adam(tfcc_model.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
-static_embedding_optimizer = torch.optim.Adam(static_embedding_model.parameters(), lr=lr)
-static_variable_selection_optimizer = torch.optim.Adam(static_variable_selection.parameters(), lr=lr)
+static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 
 
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
-Trainer(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, encoder_optimizer, tfcc_optimizer,
-        static_embedding_optimizer, static_variable_selection_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
-        loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=True)
+Trainer(encoder, tfcc_model, static_encoder, encoder_model, encoder_optimizer, tfcc_optimizer,
+        static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
+        loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=static_use)
 
 if training_mode != "self_supervised":
-    outs = model_evaluate(encoder, tfcc_model, static_embedding_model, static_variable_selection, encoder_model, test_loader, device,
+    outs = model_evaluate(encoder, tfcc_model, static_encoder, encoder_model, test_loader, device,
                           training_mode, loss_funcs[loss_func], static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)

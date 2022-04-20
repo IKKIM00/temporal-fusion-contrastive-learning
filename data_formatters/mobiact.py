@@ -12,6 +12,7 @@ BaseForamtter = data_formatters.base.BaseFormatter
 DataTypes = data_formatters.base.DataTypes
 InputTypes = data_formatters.base.InputTypes
 
+
 class MobiactFormatter(BaseForamtter):
     _column_definition = [
         ('person_id', DataTypes.CATEGORICAL, InputTypes.ID),
@@ -118,26 +119,25 @@ class MobiactFormatter(BaseForamtter):
             'kernel_size': 43,
             'stride': 1,
             'hidden_dim': 64,
-            'output_dim': 64,
+            'encoder_output_dim': 64,
             'dropout': 0.35,
             'feature_len': 29,
             'num_epoch': 300,
-            'batch_size': 512,
             'timestep': 10,
             'num_classes': 20,
             'beta1': 0.9,
-            'beta2': 0.99,
-            'drop_last': True
+            'beta2': 0.99
         }
         aug_params = {
             'jitter_scale_ration': 0.001,
             'jitter_ratio': 0.001,
-            'max_seg': 5
+            'max_seg': 5,
+            'batch_size': 512,
+            'drop_last': True
         }
         loss_params = {
             'num_epoch': 300,
-            'self_supervised_lr': 0.001,
-            'non_self_supervised_lr': 0.0001,
+            'lr': 0.001,
             'batch_size': 512,
             'temperature': 0.2,
             'use_cosine_similarity': True
