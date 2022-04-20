@@ -95,6 +95,10 @@ model_params_df = pd.DataFrame.from_dict(model_params, orient='index')
 aug_params_df = pd.DataFrame.from_dict(aug_params, orient='index')
 loss_params_df = pd.DataFrame.from_dict(loss_params, orient='index')
 
+model_params_df.to_csv(experiment_log_dir + 'model_params.csv')
+aug_params_df.to_csv(experiment_log_dir + 'aug_params.csv')
+loss_params_df.to_csv(experiment_log_dir + 'loss_params.csv')
+
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
                                                          data_type, encoder_model, training_mode)
 logger.debug("Data loaded ...")
