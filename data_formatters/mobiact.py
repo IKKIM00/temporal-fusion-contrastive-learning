@@ -1,8 +1,7 @@
 import os
-
 import data_formatters.base
 import libs.utils as utils
-import sklearn.preprocessing
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import pandas as pd
 import numpy as np
 import torch
@@ -41,7 +40,7 @@ class MobiactFormatter(BaseForamtter):
         self.observed_real_columns = utils.extract_cols_from_data_type(DataTypes.REAL_VALUED, self.column_definition,
                                                              {InputTypes.ID, InputTypes.STATIC_INPUT})
         self.id_column = utils.get_single_col_by_input_type(InputTypes.ID, self.column_definition)
-        self._target_scalers = sklearn.preprocessing.LabelEncoder()
+        self._target_scalers = LabelEncoder()
         self._num_classes_per_cat_input = None
 
     def split_data(self, dataset_dir):
@@ -73,16 +72,13 @@ class MobiactFormatter(BaseForamtter):
             observed_real_data = pad_sequence(observed_real_data)
             if idx == 0:
                 self.set_scalers(static_real_data, static_cate_data, observed_real_data)
-                output = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
-                X_train = output
+                X_train = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
                 y_train = self._target_scalers.fit_transform(y)
             elif idx == 1:
-                output = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
-                X_valid = output
+                X_valid = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
                 y_valid = self._target_scalers.transform(y)
             else:
-                output = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
-                X_test = output
+                X_test = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
                 y_test = self._target_scalers.transform(y)
 
         return X_train, y_train, X_valid, y_valid, X_test, y_test
@@ -90,14 +86,14 @@ class MobiactFormatter(BaseForamtter):
     def set_scalers(self, static_real_data, static_cate_data, observed_real_data):
         print('Setting scalers with static training data')
 
-        self._static_real_scalers = sklearn.preprocessing.StandardScaler().fit(static_real_data)
-        self._observe_real_scalers = sklearn.preprocessing.StandardScaler().fit(observed_real_data.reshape(-1, observed_real_data.shape[-1]))
+        self._static_real_scalers = StandardScaler().fit(static_real_data)
+        self._observe_real_scalers = StandardScaler().fit(observed_real_data.reshape(-1, observed_real_data.shape[-1]))
 
         categorical_scalers = {}
         num_classes = []
         for i in range(len(self.static_cate_columns)):
             srs = np.asarray(static_cate_data)[Ellipsis, i]
-            categorical_scalers[self.static_cate_columns[i]] = sklearn.preprocessing.LabelEncoder().fit(srs.reshape(-1, ))
+            categorical_scalers[self.static_cate_columns[i]] = LabelEncoder().fit(srs.reshape(-1, ))
             num_classes.append(len(np.unique(srs)))
 
         self._cat_scalers = categorical_scalers
@@ -118,6 +114,7 @@ class MobiactFormatter(BaseForamtter):
             'input_size': 6,
             'kernel_size': 22,
             'stride': 1,
+            'dilation': 1,
             'hidden_dim': 64,
             'encoder_output_dim': 64,
             'dropout': 0.35,
@@ -147,4 +144,4 @@ class MobiactFormatter(BaseForamtter):
 if __name__ == '__main__':
     dataformatter = MobiactFormatter()
     dataset_dir = '../datasets/mobiact_preprocessed/'
-    (train_X, valid_X, test_X), (train_y, valid_y, test_y) = dataformatter.split_data(dataset_dir)
+    X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir)

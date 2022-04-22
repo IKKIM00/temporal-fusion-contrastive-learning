@@ -10,6 +10,7 @@ class cnn_encoder(nn.Module):
         self.kernel_size = int(params['kernel_size'])
         self.input_channels = int(params['input_size'])
         self.stride = int(params['stride'])
+        self.dilation = int(params['dilation'])
         self.dropout = float(params['dropout'])
         self.feature_len = int(params['feature_len'])
         self.output_dim = int(params['encoder_output_dim'])
@@ -18,8 +19,11 @@ class cnn_encoder(nn.Module):
 
         self.flatten = nn.Flatten()
         self.conv_block1 = nn.Sequential(
-            nn.Conv1d(self.input_channels, 32, kernel_size=self.kernel_size,
-                      stride=self.stride, bias=False),
+            nn.Conv1d(self.input_channels, 32,
+                      kernel_size=self.kernel_size,
+                      stride=self.stride,
+                      dilation=self.dilation,
+                      bias=False),
             nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=16, stride=4),
@@ -27,14 +31,22 @@ class cnn_encoder(nn.Module):
         )
 
         self.conv_block2 = nn.Sequential(
-            nn.Conv1d(32, 64, kernel_size=self.kernel_size, stride=1, bias=False),
+            nn.Conv1d(32, 64,
+                      kernel_size=self.kernel_size,
+                      stride=1,
+                      dilation=self.dilation,
+                      bias=False),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=16, stride=4)
         )
 
         self.conv_block3 = nn.Sequential(
-            nn.Conv1d(64, self.output_dim, kernel_size=self.kernel_size, stride=1, bias=False),
+            nn.Conv1d(64, self.output_dim,
+                      kernel_size=self.kernel_size,
+                      dilation=self.dilation,
+                      stride=1,
+                      bias=False),
             nn.BatchNorm1d(self.output_dim),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=16, stride=4),

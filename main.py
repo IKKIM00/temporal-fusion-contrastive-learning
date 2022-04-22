@@ -36,7 +36,8 @@ parser.add_argument('--training_mode', default='supervised', type=str,
                     help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
 parser.add_argument('--loss_func', default='cross_entropy', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
-parser.add_argument('--selected_dataset', default='mobiact', type=str)
+parser.add_argument('--sampler_use', action=argparse.BooleanOptionalAction)
+parser.add_argument('--dataset', default='mobiact', type=str)
 parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
                     help='saving directory')
 parser.add_argument('--device', default='cpu', type=str,
@@ -47,13 +48,14 @@ args = parser.parse_args()
 
 device = torch.device(args.device)
 experiment_description = args.experiment_description
-data_type = args.selected_dataset
+data_type = args.dataset
 training_mode = args.training_mode
 method = 'TS-TCC'
 loss_func = args.loss_func
 run_description = args.run_description
 encoder_model = args.encoder_model
 static_use = args.static_use
+sampler_use = args.sampler_use
 
 print(f"Args: {args}")
 
@@ -66,7 +68,7 @@ np.random.seed(SEED)
 logs_save_dir = args.logs_save_dir
 os.makedirs(logs_save_dir, exist_ok=True)
 
-experiment_log_dir = os.path.join(logs_save_dir, experiment_description, run_description, training_mode + f"_seed_{SEED}")
+experiment_log_dir = os.path.join(logs_save_dir, experiment_description, run_description, training_mode + f"_{data_type}" + f"_seed_{SEED}")
 os.makedirs(experiment_log_dir, exist_ok=True)
 
 # loop through domains
@@ -100,7 +102,7 @@ aug_params_df.to_csv(experiment_log_dir + 'aug_params.csv')
 loss_params_df.to_csv(experiment_log_dir + 'loss_params.csv')
 
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
-                                                         data_type, encoder_model, training_mode)
+                                                         data_type, encoder_model, training_mode, use_sampler=sampler_use)
 logger.debug("Data loaded ...")
 #########################
 
