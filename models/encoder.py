@@ -10,7 +10,6 @@ class cnn_encoder(nn.Module):
         self.kernel_size = int(params['kernel_size'])
         self.input_channels = int(params['input_size'])
         self.stride = int(params['stride'])
-        self.dilation = int(params['dilation'])
         self.dropout = float(params['dropout'])
         self.feature_len = int(params['feature_len'])
         self.output_dim = int(params['encoder_output_dim'])
@@ -22,7 +21,6 @@ class cnn_encoder(nn.Module):
             nn.Conv1d(self.input_channels, 32,
                       kernel_size=self.kernel_size,
                       stride=self.stride,
-                      dilation=self.dilation,
                       bias=False),
             nn.BatchNorm1d(32),
             nn.ReLU(),
@@ -34,7 +32,6 @@ class cnn_encoder(nn.Module):
             nn.Conv1d(32, 64,
                       kernel_size=self.kernel_size,
                       stride=1,
-                      dilation=self.dilation,
                       bias=False),
             nn.BatchNorm1d(64),
             nn.ReLU(),
@@ -44,7 +41,6 @@ class cnn_encoder(nn.Module):
         self.conv_block3 = nn.Sequential(
             nn.Conv1d(64, self.output_dim,
                       kernel_size=self.kernel_size,
-                      dilation=self.dilation,
                       stride=1,
                       bias=False),
             nn.BatchNorm1d(self.output_dim),
@@ -113,26 +109,26 @@ class lstm_encoder(nn.Module):
         return logits.squeeze(), output
 
 if __name__ == '__main__':
-    from data_formatters.mobiact import MobiactFormatter
+    from data_formatters.dlr import DLRFomatter
     from libs.dataloader import data_generator
     from models.static import *
 
-    dataformatter = MobiactFormatter()
-    dataset_dir = '../datasets/mobiact_preprocessed/'
+    dataformatter = DLRFomatter()
+    dataset_dir = '../datasets/dlr_preprocessed/'
     X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir=dataset_dir)
     model_params, aug_params, loss_params = dataformatter.get_experiment_params()
 
     train_loader, _, _ = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
-                                        model_params, aug_params, 'mobiact', 'LSTM', 'train_linear')
+                                        aug_params, 'dlr', 'CNN', 'self_supervised')
     dataiter = iter(train_loader)
     observed_real, y, aug1, aug2, static = dataiter.next()
 
-    # model = cnn_encoder(model_params, static_use=True)
-    model = lstm_encoder(model_params, static_info=False)
-    static_embedding_model = StaticEmbedding(model_params, 'cpu')
-    static_variable_selection_model = StaticVariableSelection(model_params, 'cpu')
-    static_embedding = static_embedding_model(static)
-    static_context_enrichment, static_vec, sparse_weights = static_variable_selection_model(static_embedding)
+    model = cnn_encoder(model_params, static_use=True)
+    # model = lstm_encoder(model_params, static_info=False)
+    # static_embedding_model = StaticEmbedding(model_params, 'cpu')
+    # static_variable_selection_model = StaticVariableSelection(model_params, 'cpu')
+    # static_embedding = static_embedding_model(static)
+    # static_context_enrichment, static_vec, sparse_weights = static_variable_selection_model(static_embedding)
     # logits, output = model(observed_real.float(), static_vec)
     # logits, output = model(observed_real.float(), static_vec, static_context_enrichment)
     logits, output = model(observed_real.float())

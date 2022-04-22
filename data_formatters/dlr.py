@@ -57,7 +57,6 @@ class DLRFomatter(BaseForamtter):
                 temp = pd.read_csv(file_dir + file)
                 temp['person_name'] = name
 
-                id_col = temp[self.id_column]
                 static_real_col = temp[self.static_real_columns]
                 static_cate_col = temp[self.static_cate_columns]
                 observed_real_col = temp[self.observed_real_columns]
@@ -110,13 +109,12 @@ class DLRFomatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
-            'kernel_size': 100,
-            'stride': 3,
-            'dilation': 3,
+            'kernel_size': 25,
+            'stride': 1,
             'hidden_dim': 64,
             'encoder_output_dim': 64,
             'dropout': 0.35,
-            'feature_len': 35,
+            'feature_len': 42,
             'num_epoch': 400,
             'timestep': 10,
             'num_classes': 11,
@@ -127,13 +125,13 @@ class DLRFomatter(BaseForamtter):
             'jitter_scale_ration': 0.001,
             'jitter_ratio': 0.001,
             'max_seg': 5,
-            'batch_size': 512,
+            'batch_size': 256,
             'drop_last': True
         }
         loss_params = {
             'num_epoch': 400,
             'lr': 0.001,
-            'batch_size': 512,
+            'batch_size': 256,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }
