@@ -121,7 +121,7 @@ lr = loss_params['lr']
 
 if training_mode != "self_supervised":
     # load saved model
-    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"_{data_type}_self_supervised_seed_{SEED}", "saved_models"))
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
     static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]

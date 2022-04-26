@@ -39,9 +39,7 @@ class TFCC(nn.Module):
         for i in np.arange(1, self.timestep + 1):
             encode_samples[i - 1] = z_aug2[:, t_samples + i, :].view(batch, self.output_dim)
         forward_seq = z_aug1[:, :t_samples + 1, :]  # transformer input value
-
         c_t = self.seq_transformer(forward_seq)
-
         pred = torch.empty((self.timestep, batch, self.output_dim)).float().to(self.device)
         for i in np.arange(0, self.timestep):
             linear = self.Wk[i]

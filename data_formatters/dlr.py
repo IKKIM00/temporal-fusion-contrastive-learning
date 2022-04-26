@@ -130,7 +130,7 @@ class DLRFomatter(BaseForamtter):
         }
         loss_params = {
             'num_epoch': 400,
-            'lr': 0.001,
+            'lr': 0.0001,
             'batch_size': 256,
             'temperature': 0.2,
             'use_cosine_similarity': True
