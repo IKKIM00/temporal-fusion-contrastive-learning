@@ -68,7 +68,7 @@ np.random.seed(SEED)
 logs_save_dir = args.logs_save_dir
 os.makedirs(logs_save_dir, exist_ok=True)
 
-experiment_log_dir = os.path.join(logs_save_dir, experiment_description, run_description, training_mode + f"_{data_type}" + f"_seed_{SEED}")
+experiment_log_dir = os.path.join(logs_save_dir, experiment_description, run_description, training_mode + f"_seed_{SEED}_{data_type}")
 os.makedirs(experiment_log_dir, exist_ok=True)
 
 # loop through domains
@@ -97,9 +97,9 @@ model_params_df = pd.DataFrame.from_dict(model_params, orient='index')
 aug_params_df = pd.DataFrame.from_dict(aug_params, orient='index')
 loss_params_df = pd.DataFrame.from_dict(loss_params, orient='index')
 
-model_params_df.to_csv(experiment_log_dir + 'model_params.csv')
-aug_params_df.to_csv(experiment_log_dir + 'aug_params.csv')
-loss_params_df.to_csv(experiment_log_dir + 'loss_params.csv')
+model_params_df.to_csv(experiment_log_dir + '/model_params.csv')
+aug_params_df.to_csv(experiment_log_dir + '/aug_params.csv')
+loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
                                                          data_type, encoder_model, training_mode, use_sampler=sampler_use)
@@ -121,7 +121,7 @@ lr = loss_params['lr']
 
 if training_mode != "self_supervised":
     # load saved model
-    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}", "saved_models"))
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"_{data_type}_self_supervised_seed_{SEED}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
     static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]
