@@ -117,7 +117,7 @@ class DLRFomatter(BaseForamtter):
             'feature_len': 42,
             'num_epoch': 400,
             'timestep': 10,
-            'num_classes': 11,
+            'num_classes': 12,
             'beta1': 0.9,
             'beta2': 0.99
         }

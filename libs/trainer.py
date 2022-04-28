@@ -30,7 +30,7 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
             break
-        train_loss, train_acc = model_train(logger, encoder, tfcc_model, static_encoder, encoder_model_type,
+        train_loss, train_acc = model_train(encoder, tfcc_model, static_encoder, encoder_model_type,
                                             encoder_optimizer, tfcc_optimizer, static_encoder_optimizer,
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_encoder,
@@ -79,7 +79,7 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(logger, encoder, tfcc_model, static_encoder, encoder_model_type, encoder_optimizer,
+def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_optimizer,
                 tfcc_optimizer, static_encoder_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
@@ -92,7 +92,7 @@ def model_train(logger, encoder, tfcc_model, static_encoder, encoder_model_type,
     for batch_idx, (observed_real, labels, aug1, aug2, static_input) in enumerate(train_loader):
         observed_real, labels = observed_real.float().to(device), labels.long().to(device)
         aug1, aug2 = aug1.float().to(device), aug2.float().to(device)
-        logger.debug(f"static_input: {static_input}")
+
         # optimizer
         encoder_optimizer.zero_grad()
         tfcc_optimizer.zero_grad()
@@ -133,8 +133,6 @@ def model_train(logger, encoder, tfcc_model, static_encoder, encoder_model_type,
             params = dict(loss_params)
             nt_xent_criterion = NTXentLoss(device, int(params['batch_size']), float(params['temperature']),
                                            bool(params['use_cosine_similarity']))
-#             logger.debug(f'\ncont_loss : {temp_cont_loss1, temp_cont_loss2}\n'
-#                          f'NTXentLoss:     : {zis, zjs}')
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
         else:
             prediction, features = output
@@ -180,12 +178,10 @@ def model_evaluate(encoder, tfcc_model, static_encoder, encoder_model_type, test
                 pass
             else:
                 if static_use and encoder_model_type == 'CNN':
+                    
                     output = encoder(data, static_context_variable)
-                # elif static_use and encoder_model_type == 'LSTM':
-                #     output = encoder(data, static_vec, static_context_enrichment)
                 else:
                     output = encoder(data)
-
             if training_mode != "self_supervised":
                 predictions, features = output
                 loss = criterion(predictions, labels)

@@ -92,12 +92,12 @@ def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_param
                                                    drop_last=aug_params['drop_last'],
                                                    num_workers=0)
     valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
-                                               batch_size=aug_params['batch_size'] // 2,
+                                               batch_size=aug_params['batch_size'] // 4,
                                                shuffle=False,
                                                drop_last=aug_params['drop_last'],
                                                num_workers=0)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                              batch_size=aug_params['batch_size'],
+                                              batch_size=aug_params['batch_size'] // 2,
                                               shuffle=False,
                                               drop_last=False,
                                               num_workers=0)

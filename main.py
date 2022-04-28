@@ -104,7 +104,6 @@ loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
                                                          data_type, encoder_model, training_mode, use_sampler=sampler_use)
 logger.debug("Data loaded ...")
-#########################
 
 encoders = {'CNN': cnn_encoder(model_params, static_use).to(device),
             'LSTM': lstm_encoder(model_params, static_info=static_use).to(device)}
