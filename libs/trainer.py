@@ -102,7 +102,7 @@ def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder
             static_context_variable, static_context_enrichment = static_encoder(static_input.to(device))
 
         if training_mode == "self_supervised":
-            if static_use and encoder_model_type == 'CNN':
+            if static_use:
                 predictions1, features1 = encoder(aug1, static_context_variable)
                 predictions2, features2 = encoder(aug2, static_context_variable)
             else:
