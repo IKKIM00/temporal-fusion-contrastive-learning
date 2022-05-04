@@ -47,19 +47,19 @@ class cnn_encoder(nn.Module):
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=16, stride=4),
         )
+        self.static_linear = nn.Linear(self.output_dim, 32)
 
         model_output_dim = self.feature_len
-        if static_use:
-            self.logits = nn.Linear((model_output_dim + 1) * self.output_dim, self.num_classes)
-        else:
-            self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
+
+        self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
 
     def forward(self, obs_input, static_input=None):
         x = self.conv_block1(obs_input)
+        if self.static_use:
+            static_input = self.static_linear(static_input).unsqueeze(-1)
+            x = torch.cat([x, static_input], dim=2)
         x = self.conv_block2(x)
         x = self.conv_block3(x)
-        if self.static_use:
-            x = torch.cat([x, static_input.unsqueeze(-1)], dim=2)
 
         x_flat = self.flatten(x)
         logits = self.logits(x_flat)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     model_params, aug_params, loss_params = dataformatter.get_experiment_params()
 
     train_loader, _, _ = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
-                                        aug_params, 'dlr', 'CNN', 'self_supervised')
+                                        aug_params, 'mobiact', 'CNN', 'self_supervised')
     dataiter = iter(train_loader)
     observed_real, y, aug1, aug2, static = dataiter.next()
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     # static_context_enrichment, static_vec, sparse_weights = static_variable_selection_model(static_embedding)
     # logits, output = model(observed_real.float(), static_vec)
     # logits, output = model(observed_real.float(), static_vec, static_context_enrichment)
-    logits, output = model(observed_real.float())
+    logits, output = model(observed_real.float(), static.float())
     print(logits.shape, output.shape, y.shape)
     # LSTM - (1, 512, 20), (512, 32, 30)
     # CNN - (512, 20), (512, 32, 30)

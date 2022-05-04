@@ -117,7 +117,7 @@ class MobiactFormatter(BaseForamtter):
             'hidden_dim': 256,
             'encoder_output_dim': 128,
             'dropout': 0.35,
-            'feature_len': 35,
+            'feature_len': 36,
             'num_epoch': 400,
             'timestep': 15,
             'num_classes': 20,
