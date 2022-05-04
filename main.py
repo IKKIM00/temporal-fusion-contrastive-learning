@@ -114,7 +114,7 @@ loss_funcs = {
 
 static_encoder = StaticEncoder(model_params, device).to(device)
 encoder = encoders[encoder_model]
-tfcc_model = TFCC(model_params, device).to(device)
+tfcc_model = TFCC(model_params, device, static_use).to(device)
 
 lr = loss_params['lr']
 

@@ -51,10 +51,18 @@ class gated_residual_network(nn.Module):
         return self.layer_norm(output)
 
 if __name__ == "__main__":
-    x = torch.rand(32, 2048)
-    add_context = torch.rand(32, 8 * 256)
-    grn = gated_residual_network(input_dim=8 * 256,
-                                 hidden_dim=256,
-                                 additional_context=True)
-    output = grn(x, add_context)
-    print(output.shape)
+    import numpy as np
+    x = torch.rand(512, 128, 31)
+    add_context = torch.rand(512, 128)
+    seq_len = x.shape[2]
+    grn_list = nn.ModuleList()
+    for i in range(seq_len):
+        grn = gated_residual_network(input_dim=128,
+                                     hidden_dim=128,
+                                     additional_context=True)
+        grn_list.append(grn)
+    output = torch.empty(x.shape).float()
+    print(output)
+    for i in range(seq_len):
+        output[:, :, i] = grn_list[i](x[:, :, i], add_context)
+    print(output)

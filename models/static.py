@@ -136,7 +136,7 @@ if __name__ == '__main__':
     X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir=dataset_dir)
     model_params, aug_params, loss_params = dataformatter.get_experiment_params()
     train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
-                                                             model_params, aug_params, data_type='mobiact',
+                                                             aug_params, data_type='mobiact',
                                                              model_type='CNN', training_mode='self_supervised')
     dataiter = iter(train_loader)
     observed_real, y, aug1, aug2, static = dataiter.next()

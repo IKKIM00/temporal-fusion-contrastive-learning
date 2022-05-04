@@ -113,11 +113,11 @@ def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder
             features2 = F.normalize(features2, dim=1)
 
             if static_use:
-                features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
-                features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
-
-            temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2)
-            temp_cont_loss2, temp_cont_feat2 = tfcc_model(features1, features2)
+                temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2, static_context_enrichment)
+                temp_cont_loss2, temp_cont_feat2 = tfcc_model(features1, features2, static_context_enrichment)
+            else:
+                temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2)
+                temp_cont_loss2, temp_cont_feat2 = tfcc_model(features1, features2)
 
             zis = temp_cont_feat1
             zjs = temp_cont_feat2
