@@ -1,6 +1,6 @@
 # Model Architecture
 
-![](/Users/inkyungkim/Documents/Git/temporal-fusion-representation-learning/images/main_model_arch.eps "Model Architecture")
+<img src='./images/main_model_arch.svg'>
 
 # Requirments
 
