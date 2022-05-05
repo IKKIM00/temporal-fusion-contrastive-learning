@@ -11,7 +11,10 @@ class cnn_encoder(nn.Module):
         self.input_channels = int(params['input_size'])
         self.stride = int(params['stride'])
         self.dropout = float(params['dropout'])
-        self.feature_len = int(params['feature_len'])
+        if static_use:
+            self.feature_len = int(params['static_feature_len'])
+        else:
+            self.feature_len = int(params['feature_len'])
         self.output_dim = int(params['encoder_output_dim'])
         self.num_classes = int(params['num_classes'])
         self.static_use = static_use

@@ -25,7 +25,7 @@ class TFCC(nn.Module):
         self.seq_transformer = Seq_Transformer(patch_size=self.output_dim, dim=int(params['hidden_dim']), depth=4,
                                                heads=4, mlp_dim=64)
         self.static_use = static_use
-        self.seq_len = int(params["feature_len"])
+        self.seq_len = int(params["static_feature_len"])
         if self.static_use:
             self.grn_list = nn.ModuleList()
             for i in range(self.seq_len):

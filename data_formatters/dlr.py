@@ -109,14 +109,15 @@ class DLRFomatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
-            'kernel_size': 25,
+            'kernel_size': 50,
             'stride': 1,
-            'hidden_dim': 64,
-            'encoder_output_dim': 64,
+            'hidden_dim': 128,
+            'encoder_output_dim': 128,
             'dropout': 0.35,
-            'feature_len': 42,
-            'num_epoch': 400,
-            'timestep': 10,
+            'static_feature_len': 34,
+            'feature_len': 34,
+            'num_epoch': 600,
+            'timestep': 15,
             'num_classes': 12,
             'beta1': 0.9,
             'beta2': 0.99
@@ -129,7 +130,7 @@ class DLRFomatter(BaseForamtter):
             'drop_last': True
         }
         loss_params = {
-            'num_epoch': 400,
+            'num_epoch': 600,
             'lr': 0.0001,
             'batch_size': 256,
             'temperature': 0.2,
