@@ -12,11 +12,10 @@ DataTypes = data_formatters.base.DataTypes
 InputTypes = data_formatters.base.InputTypes
 
 
-class MobiactFormatter(BaseForamtter):
+class DLRFomatter(BaseForamtter):
     _column_definition = [
-        ('person_id', DataTypes.CATEGORICAL, InputTypes.ID),
+        ('person_name', DataTypes.CATEGORICAL, InputTypes.ID),
         ('height', DataTypes.REAL_VALUED, InputTypes.STATIC_INPUT),
-        ('weight', DataTypes.REAL_VALUED, InputTypes.STATIC_INPUT),
         ('gender', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
         ('age', DataTypes.REAL_VALUED, InputTypes.STATIC_INPUT),
         ('acc_x', DataTypes.REAL_VALUED, InputTypes.OBSERVED_INPUT),
@@ -34,11 +33,11 @@ class MobiactFormatter(BaseForamtter):
         self._observe_real_scalers = None
         self.column_definition = self.get_column_definition()
         self.static_real_columns = utils.extract_cols_from_data_type(DataTypes.REAL_VALUED, self.column_definition,
-                                                                    {InputTypes.ID, InputTypes.OBSERVED_INPUT})
+                                                                     {InputTypes.ID, InputTypes.OBSERVED_INPUT})
         self.static_cate_columns = utils.extract_cols_from_data_type(DataTypes.CATEGORICAL, self.column_definition,
                                                                      {InputTypes.ID, InputTypes.OBSERVED_INPUT})
         self.observed_real_columns = utils.extract_cols_from_data_type(DataTypes.REAL_VALUED, self.column_definition,
-                                                             {InputTypes.ID, InputTypes.STATIC_INPUT})
+                                                                       {InputTypes.ID, InputTypes.STATIC_INPUT})
         self.id_column = utils.get_single_col_by_input_type(InputTypes.ID, self.column_definition)
         self._target_scalers = LabelEncoder()
         self._num_classes_per_cat_input = None
@@ -46,25 +45,23 @@ class MobiactFormatter(BaseForamtter):
     def split_data(self, dataset_dir):
         print('Formatting train-valid-test static data splits')
 
-        max_length = 2995
-
         train_dir, valid_dir, test_dir = 'train/', 'valid/', 'test/'
         for idx, dir_name in enumerate([train_dir, valid_dir, test_dir]):
             id_data, static_real_data, static_cate_data, observed_real_data, y = [], [], [], [], []
             file_dir = dataset_dir + dir_name
             file_list = os.listdir(file_dir)
             for file in file_list:
-                label = file.split('_')[0]
-                temp = pd.read_csv(file_dir + file)
-                if len(temp) > max_length:
-                    temp = temp.iloc[:max_length]
+                label = file.split('_')[-2]
+                name = file.split('_')[1]
 
-                id_col = temp[self.id_column]
+                temp = pd.read_csv(file_dir + file)
+                temp['person_name'] = name
+
                 static_real_col = temp[self.static_real_columns]
                 static_cate_col = temp[self.static_cate_columns]
                 observed_real_col = temp[self.observed_real_columns]
 
-                id_data.append(id_col.values[0])
+                id_data.append(name)
                 static_real_data.append(static_real_col.values[0].tolist())
                 static_cate_data.append(static_cate_col.values[0].tolist())
                 observed_real_data.append(torch.tensor(observed_real_col.values))
@@ -76,11 +73,10 @@ class MobiactFormatter(BaseForamtter):
                 y_train = self._target_scalers.fit_transform(y)
             elif idx == 1:
                 X_valid = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
-                y_valid = self._target_scalers.transform(y)
+                y_valid = self._target_scalers.fit_transform(y)
             else:
                 X_test = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
-                y_test = self._target_scalers.transform(y)
-
+                y_test = self._target_scalers.fit_transform(y)
         return X_train, y_train, X_valid, y_valid, X_test, y_test
 
     def set_scalers(self, static_real_data, static_cate_data, observed_real_data):
@@ -101,7 +97,8 @@ class MobiactFormatter(BaseForamtter):
 
     def transform_inputs(self, static_real_data, static_cate_data, observed_real_data):
         output = {}
-        output['observed_real'] = self._observe_real_scalers.transform(observed_real_data.reshape(-1, observed_real_data.shape[-1])).reshape(observed_real_data.shape)
+        output['observed_real'] = self._observe_real_scalers.transform(
+            observed_real_data.reshape(-1, observed_real_data.shape[-1])).reshape(observed_real_data.shape)
         output['static_real'] = self._static_real_scalers.transform(static_real_data)
 
         for i in range(len(self.static_cate_columns)):
@@ -112,16 +109,16 @@ class MobiactFormatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
-            'kernel_size': 22,
+            'kernel_size': 50,
             'stride': 1,
-            'hidden_dim': 256,
+            'hidden_dim': 128,
             'encoder_output_dim': 128,
             'dropout': 0.35,
-            'static_feature_len': 36,
-            'feature_len': 35,
-            'num_epoch': 400,
-            'timestep': 20,
-            'num_classes': 20,
+            'static_feature_len': 34,
+            'feature_len': 34,
+            'num_epoch': 600,
+            'timestep': 15,
+            'num_classes': 12,
             'beta1': 0.9,
             'beta2': 0.99
         }
@@ -129,19 +126,20 @@ class MobiactFormatter(BaseForamtter):
             'jitter_scale_ration': 0.001,
             'jitter_ratio': 0.001,
             'max_seg': 5,
-            'batch_size': 512,
+            'batch_size': 256,
             'drop_last': True
         }
         loss_params = {
-            'num_epoch': 400,
-            'lr': 0.001,
-            'batch_size': 512,
+            'num_epoch': 600,
+            'lr': 0.0001,
+            'batch_size': 256,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }
         return model_params, aug_params, loss_params
 
-if __name__ == '__main__':
-    dataformatter = MobiactFormatter()
-    dataset_dir = '../datasets/mobiact_preprocessed/'
-    X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir)
+if __name__ == "__main__":
+    data_formatters = DLRFomatter()
+    dataset_dir = '../datasets/dlr_preprocessed/'
+    X_train, y_train, X_valid, y_valid, X_test, y_test = data_formatters.split_data(dataset_dir)
+    print(X_train.shape)

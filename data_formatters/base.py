@@ -24,12 +24,12 @@ class BaseFormatter(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def set_scalers(self, df):
+    def set_scalers(self, static_real_data, static_cate_data, observed_real_data):
         """set scalers for dataset"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def transform_inputs(self, df):
+    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data):
         """transform dataset using set scalers"""
         raise NotImplementedError()
 
