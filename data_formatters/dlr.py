@@ -114,11 +114,11 @@ class DLRFomatter(BaseForamtter):
             'hidden_dim': 128,
             'encoder_output_dim': 128,
             'dropout': 0.35,
-            'static_feature_len': 34,
-            'feature_len': 34,
+            'static_feature_len': 11,
+            'feature_len': 11,
             'num_epoch': 600,
-            'timestep': 15,
-            'num_classes': 12,
+            'timestep': 5,
+            'num_classes': 5,
             'beta1': 0.9,
             'beta2': 0.99
         }
