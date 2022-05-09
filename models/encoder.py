@@ -85,6 +85,7 @@ class lstm_encoder(nn.Module):
         self.lstm = nn.LSTM(input_size=self.input_dim,
                             hidden_size=self.output_dim,
                             batch_first=True)
+
         if static_info:
             self.static_context_state_h = gated_residual_network(input_dim=self.output_dim,
                                                                  hidden_dim=self.output_dim,
@@ -110,6 +111,7 @@ class lstm_encoder(nn.Module):
         output = self.adaptive_pooling(torch.permute(output, (0, 2, 1)).contiguous())
         logits = self.logits(h_t)
         return logits.squeeze(), output
+
 
 if __name__ == '__main__':
     from data_formatters.dlr import DLRFomatter

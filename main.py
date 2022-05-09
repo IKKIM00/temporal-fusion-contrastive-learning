@@ -25,32 +25,25 @@ start_time = datetime.now()
 parser = argparse.ArgumentParser()
 ######################## Model parameters ########################
 home_dir = os.getcwd()
-parser.add_argument('--experiment_description', default='Exp1', type=str,
-                    help='Experiment Description')
-parser.add_argument('--run_description', default='run1', type=str,
-                    help='Experiment Description')
-parser.add_argument('--seed', default=42, type=int,
-                    help='seed value')
+parser.add_argument('--experiment_description', default='Exp1', type=str)
+parser.add_argument('--run_description', default='run1', type=str)
+parser.add_argument('--seed', default=42, type=int)
 parser.add_argument('--encoder_model', default='CNN', type=str)
-parser.add_argument('--training_mode', default='supervised', type=str,
-                    help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
+parser.add_argument('--training_mode', default='supervised', type=str)
 parser.add_argument('--loss_func', default='cross_entropy', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--sampler_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--dataset', default='mobiact', type=str)
-parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
-                    help='saving directory')
-parser.add_argument('--device', default='cpu', type=str,
-                    help='cpu or cuda')
-parser.add_argument('--home_path', default=home_dir, type=str,
-                    help='Project home directory')
+parser.add_argument('--logs_save_dir', default='experiments_logs', type=str)
+parser.add_argument('--device', default='cpu', type=str)
+parser.add_argument('--home_path', default=home_dir, type=str)
 args = parser.parse_args()
 
 device = torch.device(args.device)
 experiment_description = args.experiment_description
 data_type = args.dataset
 training_mode = args.training_mode
-method = 'TS-TCC'
+method = 'TFCL'
 loss_func = args.loss_func
 run_description = args.run_description
 encoder_model = args.encoder_model
@@ -105,12 +98,16 @@ train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_val
                                                          data_type, encoder_model, training_mode, use_sampler=sampler_use)
 logger.debug("Data loaded ...")
 
+# +
 encoders = {'CNN': cnn_encoder(model_params, static_use).to(device),
             'LSTM': lstm_encoder(model_params, static_info=static_use).to(device)}
+
 loss_funcs = {
     'cross_entropy': nn.CrossEntropyLoss(),
     'focal': FocalLoss()
 }
+
+# -
 
 static_encoder = StaticEncoder(model_params, device).to(device)
 encoder = encoders[encoder_model]
