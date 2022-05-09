@@ -69,6 +69,76 @@ class cnn_encoder(nn.Module):
         return logits, x
 
 
+class cnn_encoder_2(nn.Module):
+    def __init__(self, model_params, static_use=False):
+        super(cnn_encoder_2, self).__init__()
+
+        params = dict(model_params)
+        self.kernel_size = int(params['kernel_size'])
+        self.input_channels = int(params['input_size'])
+        self.stride = int(params['stride'])
+        self.dropout = float(params['dropout'])
+        if static_use:
+            self.feature_len = int(params['static_feature_len'])
+        else:
+            self.feature_len = int(params['feature_len'])
+        self.output_dim = int(params['encoder_output_dim'])
+        self.num_classes = int(params['num_classes'])
+        self.static_use = static_use
+
+        self.flatten = nn.Flatten()
+        self.conv_block1 = nn.Sequential(
+            nn.Conv1d(self.input_channels, 32,
+                      kernel_size=self.kernel_size,
+                      stride=self.stride,
+                      bias=False),
+            nn.ReLU(),
+            nn.Dropout(self.dropout)
+        )
+
+        self.conv_block2 = nn.Sequential(
+            nn.Conv1d(32, 64,
+                      kernel_size=self.kernel_size,
+                      stride=1,
+                      bias=False),
+            nn.ReLU(),
+            nn.Dropout(self.dropout)
+        )
+
+        self.conv_block3 = nn.Sequential(
+            nn.Conv1d(64, self.output_dim,
+                      kernel_size=self.kernel_size,
+                      stride=1,
+                      bias=False),
+            nn.ReLU(),
+            nn.Dropout(self.dropout)
+        )
+
+        self.globalMaxPool1D = nn.AdaptiveMaxPool1d(1)
+
+
+        self.static_linear = nn.Linear(self.output_dim, 32)
+
+        model_output_dim = self.feature_len
+
+        self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
+
+        # attach head
+    def forward(self, obs_input, static_input=None):
+        x = self.conv_block1(obs_input)
+        if self.static_use:
+            static_input = self.static_linear(static_input).unsqueeze(-1)
+            x = torch.cat([x, static_input], dim=2)
+        x = self.conv_block2(x)
+        x = self.conv_block3(x)
+
+        # global Max Pooling 1D
+        x = self.globalMaxPool1D(x).squeeze()
+
+        logits = self.logits(x)
+        return logits, x
+
+
 class lstm_encoder(nn.Module):
     def __init__(self, model_params, static_info=False):
         super(lstm_encoder, self).__init__()

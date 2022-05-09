@@ -69,3 +69,36 @@ class TFCC(nn.Module):
             nce += torch.sum(torch.diag(self.lsoftmax(total)))
         nce /= -1. * batch * self.timestep
         return nce, self.projection_head(c_t)
+        
+class AR_Model(nn.Module):
+    def __init__(self, model_params, device, static_use):
+        super(AR_Model, self).__init__()
+
+        params = dict(model_params)
+        self.output_dim = int(params['encoder_output_dim'])
+        self.timestep = int(params['timestep'])
+        self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim']), self.output_dim) for i in range(self.timestep)])
+        self.lsoftmax = nn.LogSoftmax(dim=1)
+        self.device = device
+
+        self.projection_head = nn.Sequential(
+            nn.Linear(int(params['encoder_output_dim']), int(params['encoder_output_dim']) // 2),
+            nn.ReLU(),
+            nn.Linear(int(params['encoder_output_dim'])//2, int(params['encoder_output_dim'])//4),
+            nn.ReLU(),
+            nn.Linear(int(params['encoder_output_dim'])//4, int(params['encoder_output_dim']) // 8)
+           
+        ) # create_linear_model_from_base_model
+
+
+    def forward(self, feature_aug1, feature_aug2, static_info=None):
+
+
+        z_aug = feature_aug1  # (batch_size, channels, seq_len)
+        z_aug = torch.permute(z_aug, (0, 2, 1)).contiguous()
+
+
+
+        batch = z_aug.shape[0]
+
+        return  _, self.projection_head(z_aug)

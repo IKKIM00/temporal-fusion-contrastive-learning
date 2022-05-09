@@ -128,12 +128,13 @@ def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder
                 output = encoder(observed_real)
 
         if training_mode == "self_supervised":
-            lambda1 = 1
-            lambda2 = 0.7
+            # lambda1 = 1
+            # lambda2 = 0.7
             params = dict(loss_params)
             nt_xent_criterion = NTXentLoss(device, int(params['batch_size']), float(params['temperature']),
                                            bool(params['use_cosine_similarity']))
-            loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
+            # loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
+            loss = + nt_xent_criterion(zis, zjs)
         else:
             prediction, features = output
             loss = criterion(prediction, labels)
