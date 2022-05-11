@@ -12,8 +12,8 @@ from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
-from models.TFCC import TFCC
-from models.encoder import cnn_encoder, lstm_encoder
+from models.TFCC import TFCC, AR_Model, TF_encoder
+from models.encoder import cnn_encoder, lstm_encoder, cnn_encoder_2, cnn_encoder_3
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
@@ -99,7 +99,7 @@ train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_val
 logger.debug("Data loaded ...")
 
 # +
-encoders = {'CNN': cnn_encoder(model_params, static_use).to(device),
+encoders = {'CNN': cnn_encoder_3(model_params, static_use).to(device),
             'LSTM': lstm_encoder(model_params, static_info=static_use).to(device)}
 
 loss_funcs = {
@@ -111,7 +111,7 @@ loss_funcs = {
 
 static_encoder = StaticEncoder(model_params, device).to(device)
 encoder = encoders[encoder_model]
-tfcc_model = TFCC(model_params, device, static_use).to(device)
+tfcc_model = TF_encoder(model_params, device, static_use).to(device)
 
 lr = loss_params['lr']
 
