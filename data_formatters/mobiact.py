@@ -112,6 +112,7 @@ class MobiactFormatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
+            'input_seq': 2995,
             'kernel_size': 22,
             'stride': 1,
             'hidden_dim': 256,

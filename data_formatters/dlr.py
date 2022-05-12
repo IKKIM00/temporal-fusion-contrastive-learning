@@ -109,6 +109,7 @@ class DLRFomatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
+            'input_seq': 2000,
             'kernel_size': 50,
             'stride': 1,
             'hidden_dim': 128,
