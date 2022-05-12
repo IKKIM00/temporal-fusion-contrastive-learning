@@ -14,7 +14,7 @@ import warnings
 warnings.filterwarnings('always')
 
 
-def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_optimizer, tfcc_optimizer,
+def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, ar_optimizer,
             static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger,
             loss_params, loss_func, experiment_log_dir, training_mode, static_use=True):
 
@@ -25,16 +25,14 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
     train_best_loss = 999999999
     patience = 0
 
-    # encoder_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(encoder_optimizer, mode='min', patience=2, factor=0.95)
-
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
             break
-        train_loss, train_acc = model_train(encoder, tfcc_model, static_encoder, encoder_model_type,
-                                            encoder_optimizer, tfcc_optimizer, static_encoder_optimizer,
+        train_loss, train_acc = model_train(logger, encoder, autoregressive, static_encoder, method,
+                                            encoder_optimizer, ar_optimizer, static_encoder_optimizer,
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
-        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, tfcc_model, static_encoder,
-                                                              encoder_model_type, valid_loader, device, training_mode, loss_func, static_use)
+        valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, autoregressive, static_encoder,
+                                                              method, valid_loader, device, training_mode, loss_func, static_use)
 
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
@@ -45,7 +43,7 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
             train_best_loss = train_loss
             os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
             chkpoint = {'model_state_dict': encoder.state_dict(),
-                        'temporal_contr_model_state_dict': tfcc_model.state_dict(),
+                        'temporal_contr_model_state_dict': autoregressive.state_dict(),
                         'static_encoder_model_state_dict': static_encoder.state_dict()}
             torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
 
@@ -55,11 +53,11 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
             best_loss = valid_loss
             os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True)
             chkpoint = {'model_state_dict': encoder.state_dict(),
-                        'temporal_contr_model_state_dict': tfcc_model.state_dict(),
+                        'temporal_contr_model_state_dict': autoregressive.state_dict(),
                         'static_encoder_model_state_dict': static_encoder.state_dict()}
             torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
             best_encoder_model = encoder
-            best_tfcc_model = tfcc_model
+            best_autoregressive = autoregressive
             best_static_encoder_model = static_encoder
         elif training_mode != "self_supervised" and valid_loss > best_loss:
             patience += 1
@@ -68,10 +66,10 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
         # evaluate on the test set
         logger.debug('\nEvaluate on the Test set:')
         encoder = best_encoder_model
-        tfcc_model = best_tfcc_model
+        autoregressive = best_autoregressive
         static_encoder_model = best_static_encoder_model
-        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, tfcc_model, static_encoder_model,
-                                                                          encoder_model_type, test_loader, device,
+        test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, autoregressive, static_encoder_model,
+                                                                          method, test_loader, device,
                                                                           training_mode, loss_func, static_use)
         logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
                      f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
@@ -79,23 +77,24 @@ def Trainer(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_opt
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder_optimizer,
-                tfcc_optimizer, static_encoder_optimizer, criterion, train_loader, loss_params, device,
+def model_train(logger, encoder, autoregressive, static_encoder, method, encoder_optimizer,
+                ar_optimizer, static_encoder_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
     total_acc = []
     encoder.train()
-    tfcc_model.train()
+    autoregressive.train()
     if static_use:
         static_encoder.train()
 
     for batch_idx, (observed_real, labels, aug1, aug2, static_input) in enumerate(train_loader):
         observed_real, labels = observed_real.float().to(device), labels.long().to(device)
         aug1, aug2 = aug1.float().to(device), aug2.float().to(device)
+        logger.debug(f"observed real shape: {aug1.shape}")
 
         # optimizer
         encoder_optimizer.zero_grad()
-        tfcc_optimizer.zero_grad()
+        ar_optimizer.zero_grad()
 
         if static_use:
             static_encoder_optimizer.zero_grad()
@@ -115,26 +114,32 @@ def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder
             if static_use:
                 features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
                 features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
+                # logger.debug(f"feature size: {features2.shape}")
 
-            temp_cont_loss1, temp_cont_feat1 = tfcc_model(features1, features2)
-            temp_cont_loss2, temp_cont_feat2 = tfcc_model(features2, features1)
+            if method == "TFCL":
+                temp_cont_loss1, temp_cont_feat1 = autoregressive(features1, features2)
+                temp_cont_loss2, temp_cont_feat2 = autoregressive(features2, features1)
 
-            zis = temp_cont_feat1
-            zjs = temp_cont_feat2
+                zis = temp_cont_feat1
+                zjs = temp_cont_feat2
+            else:
+                projection1 = autoregressive(features1)
+                projection2 = autoregressive(features2)
         else:
-            if static_use and encoder_model_type == 'CNN':
+            if static_use and method == "TFCL":
                 output = encoder(observed_real, static_context_variable)
             else:
                 output = encoder(observed_real)
 
-        if training_mode == "self_supervised":
-            # lambda1 = 1
-            # lambda2 = 0.7
-            params = dict(loss_params)
-            nt_xent_criterion = NTXentLoss(device, int(params['batch_size']), float(params['temperature']),
-                                           bool(params['use_cosine_similarity']))
-            # loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
-            loss = + nt_xent_criterion(zis, zjs)
+        params = dict(loss_params)
+        nt_xent_criterion = NTXentLoss(device, int(params['batch_size']), float(params['temperature']),
+                                       bool(params['use_cosine_similarity']))
+        if training_mode == "self_supervised" and method == "TFCL":
+            lambda1 = 1
+            lambda2 = 0.7
+            loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
+        elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
+            loss = nt_xent_criterion(projection1, projection2)
         else:
             prediction, features = output
             loss = criterion(prediction, labels)
@@ -143,7 +148,7 @@ def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder
         total_loss.append(loss.item())
         loss.backward()
         encoder_optimizer.step()
-        tfcc_optimizer.step()
+        ar_optimizer.step()
         if static_use:
             static_encoder_optimizer.step()
 
@@ -156,10 +161,10 @@ def model_train(encoder, tfcc_model, static_encoder, encoder_model_type, encoder
     return total_loss, total_acc
 
 
-def model_evaluate(encoder, tfcc_model, static_encoder, encoder_model_type, test_loader, device,
+def model_evaluate(encoder, autoregressive, static_encoder, method, test_loader, device,
                    training_mode, criterion, static_use):
     encoder.eval()
-    tfcc_model.eval()
+    autoregressive.eval()
     static_encoder.eval()
 
     total_loss = []
@@ -178,7 +183,7 @@ def model_evaluate(encoder, tfcc_model, static_encoder, encoder_model_type, test
             if training_mode == "self_supervised":
                 pass
             else:
-                if static_use and encoder_model_type == 'CNN':
+                if static_use and method == 'CNN':
                     
                     output = encoder(data, static_context_variable)
                 else:

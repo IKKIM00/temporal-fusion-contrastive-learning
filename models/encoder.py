@@ -172,7 +172,9 @@ class CSSHAREncoder(nn.Module):
         x = self.conv_block2(x)
         x = self.conv_block3(x)
 
+        x = x.permute(2, 0, 1).contiguous() # seq, b, c
         x = self.positional_encodig(x)
+        x = x.permute(1, 0, 2).contiguous()
         x = self.transformer_encoder(x)
         x = self.flatten(x)
         logit = self.logits(x)
