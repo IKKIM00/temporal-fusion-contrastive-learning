@@ -100,4 +100,4 @@ def copy_Files(destination, data_type):
     copy("libs/dataloader.py", os.path.join(destination_dir, "dataloader.py"))
     copy(f"models/encoder.py", os.path.join(destination_dir, f"encoder.py"))
     copy("models/loss.py", os.path.join(destination_dir, "loss.py"))
-    copy("models/TFCC.py", os.path.join(destination_dir, "TFCC.py"))
+    copy("models/autoregressive.py", os.path.join(destination_dir, "autoregressive.py"))

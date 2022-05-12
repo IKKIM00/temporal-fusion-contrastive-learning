@@ -5,8 +5,8 @@ from models.attention import Seq_Transformer
 from models.grn import gated_residual_network
 import math
 
-class PositionalEncoding(nn.Module):
 
+class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
@@ -19,14 +19,13 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-
         x = x + self.pe[:x.size(0)]
         return self.dropout(x)
 
 
-class TFCC(nn.Module):
+class BaseAR(nn.Module):
     def __init__(self, model_params, device, static_use):
-        super(TFCC, self).__init__()
+        super(BaseAR, self).__init__()
 
         params = dict(model_params)
         self.output_dim = int(params['encoder_output_dim'])
@@ -44,8 +43,8 @@ class TFCC(nn.Module):
         self.seq_transformer = Seq_Transformer(patch_size=self.output_dim, dim=int(params['hidden_dim']), depth=4,
                                                heads=4, mlp_dim=64)
         self.static_use = static_use
-        self.seq_len = int(params["static_feature_len"])
         if self.static_use:
+            self.seq_len = int(params["static_feature_len"]) + 1
             self.grn_list = nn.ModuleList()
             for i in range(self.seq_len):
                 grn = gated_residual_network(input_dim=self.output_dim,
@@ -88,82 +87,33 @@ class TFCC(nn.Module):
             nce += torch.sum(torch.diag(self.lsoftmax(total)))
         nce /= -1. * batch * self.timestep
         return nce, self.projection_head(c_t)
-        
-class AR_Model(nn.Module):
-    def __init__(self, model_params, device, static_use):
-        super(AR_Model, self).__init__()
+
+
+class SimclrHARAR(nn.Module):
+    def __init__(self, hidden_dim1=256, hidden_dim2=128, hidden_dim3=50):
+        super(SimclrHARAR, self).__init__()
+        self.projection_head = nn.Sequential(
+            nn.Linear(96, hidden_dim1),
+            nn.ReLU(),
+            nn.Linear(hidden_dim1, hidden_dim2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim2, hidden_dim3)
+        )
+
+    def forward(self, feature_aug1):
+        return self.projection_head(feature_aug1)
+
+
+class CSSHARAR(nn.Module):
+    def __init__(self, model_params, projection_neuron=1024):
+        super(CSSHARAR, self).__init__()
 
         params = dict(model_params)
-        self.output_dim = int(params['encoder_output_dim'])
-        self.timestep = int(params['timestep'])
-        self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim']), self.output_dim) for i in range(self.timestep)])
-        self.lsoftmax = nn.LogSoftmax(dim=1)
-        self.device = device
-
+        self.input_seq = int(params['input_seq'])
         self.projection_head = nn.Sequential(
-            nn.Linear(int(params['encoder_output_dim']), int(params['encoder_output_dim']) // 2),
             nn.ReLU(),
-            nn.Linear(int(params['encoder_output_dim'])//2, int(params['encoder_output_dim'])//4),
-            nn.ReLU(),
-            nn.Linear(int(params['encoder_output_dim'])//4, int(params['encoder_output_dim']) // 8)
-           
-        ) # create_linear_model_from_base_model
+            nn.Linear(self.input_seq * 256, projection_neuron)
+        )
 
-
-    def forward(self, feature_aug1, feature_aug2, static_info=None):
-
-
-        z_aug = feature_aug1  # (batch_size, channels, seq_len)
-        z_aug = torch.permute(z_aug, (0, 2, 1)).contiguous()
-
-
-
-        batch = z_aug.shape[0]
-
-        return 0, self.projection_head(z_aug)
-
-
-
-class TF_encoder(nn.Module):
-    def __init__(self, model_params, device, static_use):
-        super(TF_encoder, self).__init__()
-
-        params = dict(model_params)
-        self.output_dim = int(params['encoder_output_dim'])
-        self.timestep = int(params['timestep'])
-        self.feature_len = int(params['feature_len'])
-        self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim']), self.output_dim) for i in range(self.timestep)])
-        self.lsoftmax = nn.LogSoftmax(dim=1)
-        self.device = device
-
-        model_output_dim = self.feature_len * self.output_dim
-
-        self.pos_encoding = PositionalEncoding(self.output_dim)
-
-        self.flatten = nn.Flatten()
-
-        self.encoder_layer = nn.TransformerEncoderLayer(d_model=self.output_dim, nhead=8)
-        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=6)
-
-        self.projection_head = nn.Sequential(
-            nn.Linear(model_output_dim, model_output_dim//2),
-            nn.ReLU(),
-            nn.Linear(model_output_dim//2, int(params['encoder_output_dim']) // 4)
-        )# create_linear_model_from_base_model
-
-
-    def forward(self, feature_aug1, feature_aug2, static_info=None):
-
-        z_aug = feature_aug1  
-        z_aug = torch.permute(z_aug, (2, 0, 1)).contiguous()
-
-        pos_z_aug = self.pos_encoding(z_aug)
-
-        pos_z_aug = self.transformer_encoder(pos_z_aug)
-
-        pos_z_aug = torch.permute(pos_z_aug, (1, 2, 0)).contiguous()
-
-        pos_z_aug = self.flatten(pos_z_aug)
-
-
-        return 0, self.projection_head(pos_z_aug)
+    def forward(self, feature_aug1):
+        return self.projection_head(feature_aug1)

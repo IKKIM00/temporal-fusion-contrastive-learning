@@ -28,8 +28,7 @@ home_dir = os.getcwd()
 parser.add_argument('--experiment_description', default='Exp1', type=str)
 parser.add_argument('--run_description', default='run1', type=str)
 parser.add_argument('--seed', default=42, type=int)
-parser.add_argument('--encoder_model', default='BaseEncoder', type=str)
-parser.add_argument('--ar_model', default='BaseAR', type=str, help='choose autoregressive model')
+parser.add_argument('--model_type', default='TFCL', type=str, help='TFCL, SimclrHAR, CSSHAR')
 parser.add_argument('--training_mode', default='supervised', type=str)
 parser.add_argument('--loss_func', default='cross_entropy', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
@@ -44,11 +43,9 @@ device = torch.device(args.device)
 experiment_description = args.experiment_description
 data_type = args.dataset
 training_mode = args.training_mode
-method = 'TFCL'
+method = args.model_type
 loss_func = args.loss_func
 run_description = args.run_description
-encoder_model = args.encoder_model
-ar_model = args.ar_model
 static_use = args.static_use
 sampler_use = args.sampler_use
 
@@ -97,18 +94,8 @@ aug_params_df.to_csv(experiment_log_dir + '/aug_params.csv')
 loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
-                                                         data_type, encoder_model, training_mode, use_sampler=sampler_use)
+                                                         data_type, training_mode, use_sampler=sampler_use)
 logger.debug("Data loaded ...")
-
-encoders = {'BaseEncoder': BaseEncoder(model_params, static_use),
-            'SimclrEncoder': SimclrHAREncoder(model_params),
-            'CSSHAREncoder': CSSHAREncoder(model_params)
-            }
-
-autoregressives = {'BaseAR': BaseAR(model_params, device, static_use),
-                   'SimclrHARAR': SimclrHARAR(model_params, device),
-                   'CSSHARAR': CSSHARAR(model_params, device)
-                   }
 
 loss_funcs = {
     'cross_entropy': nn.CrossEntropyLoss(),
@@ -116,8 +103,21 @@ loss_funcs = {
 }
 
 static_encoder = StaticEncoder(model_params, device).to(device)
-encoder = encoders[encoder_model].to(device)
-autoregressive = autoregressives[ar_model].to(device)
+
+if method == 'TFCL':
+    encoder = BaseEncoder(model_params, static_use)
+    autoregressive = BaseAR(model_params, device, static_use)
+elif method == 'SimclrHAR':
+    encoder = SimclrHAREncoder(model_params)
+    autoregressive = SimclrHARAR()
+elif method == 'CSSHAR':
+    encoder = CSSHAREncoder(model_params)
+    autoregressive = CSSHARAR(model_params)
+else:
+    logger.error(f"Not Supported Method")
+
+encoder = encoder.to(device)
+autoregressive = autoregressive.to(device)
 
 lr = loss_params['lr']
 
@@ -151,7 +151,6 @@ if training_mode != "self_supervised":
         encoder.load_state_dict(model_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
         set_requires_grad(encoder, pretrained_dict, requires_grad=False)
-        # set_requires_grad(static_encoder, static_encoder_model_state_dict, requires_grad=False)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
@@ -161,12 +160,12 @@ static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
-Trainer(encoder, autoregressive, static_encoder, encoder_model, encoder_optimizer, ar_optimizer,
+Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, ar_optimizer,
         static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
         loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=static_use)
 
 if training_mode != "self_supervised":
-    outs = model_evaluate(encoder, autoregressive, static_encoder, encoder_model, test_loader, device,
+    outs = model_evaluate(encoder, autoregressive, static_encoder, method, test_loader, device,
                           training_mode, loss_funcs[loss_func], static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)

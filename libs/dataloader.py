@@ -8,7 +8,7 @@ from torchsampler import ImbalancedDatasetSampler
 
 
 class MobiActDataset(Dataset):
-    def __init__(self, X_data, y_data, aug_params, model_type, training_mode):
+    def __init__(self, X_data, y_data, aug_params, training_mode):
         super(MobiActDataset, self).__init__()
         self.training_mode = training_mode
 
@@ -18,10 +18,7 @@ class MobiActDataset(Dataset):
         self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
 
-        if model_type == 'CNN':
-            self.observed_real = torch.permute(self.observed_real, (1, 2, 0)).contiguous()
-        elif model_type == 'LSTM':
-            self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
+        self.observed_real = torch.permute(self.observed_real, (1, 2, 0)).contiguous()
 
         self.len = self.observed_real.shape[0]
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes
@@ -38,7 +35,7 @@ class MobiActDataset(Dataset):
 
 
 class DLRDataset(Dataset):
-    def __init__(self, X_data, y_data, aug_params, model_type, training_mode):
+    def __init__(self, X_data, y_data, aug_params, training_mode):
         super(DLRDataset, self).__init__()
         self.training_mode = training_mode
 
@@ -48,8 +45,8 @@ class DLRDataset(Dataset):
         self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
 
-        if model_type == "CNN":
-            self.observed_real = torch.permute(self. observed_real, (1, 2, 0)).contiguous()
+        self.observed_real = torch.permute(self. observed_real, (1, 2, 0)).contiguous()
+
         if training_mode == "self_supervised":
             self.aug1, self.aug2 = TSTCCDataTransform(self.observed_real, aug_params)
 
@@ -66,15 +63,15 @@ class DLRDataset(Dataset):
         return self.len
 
 
-def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params, data_type, model_type,
+def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params, data_type,
                    training_mode, use_sampler=False):
 
     choose_dataset = {'mobiact': MobiActDataset,
                       'dlr': DLRDataset}
 
-    train_dataset = choose_dataset[data_type](X_train, y_train, aug_params, model_type, training_mode)
-    valid_dataset = choose_dataset[data_type](X_valid, y_valid, aug_params, model_type, training_mode)
-    test_dataset = choose_dataset[data_type](X_test, y_test, aug_params, model_type, training_mode)
+    train_dataset = choose_dataset[data_type](X_train, y_train, aug_params, training_mode)
+    valid_dataset = choose_dataset[data_type](X_valid, y_valid, aug_params, training_mode)
+    test_dataset = choose_dataset[data_type](X_test, y_test, aug_params, training_mode)
 
     if use_sampler:
         def get_y_label(dataset):
