@@ -1,6 +1,6 @@
 # Model Architecture
 
-<img src='./images/tf_tcc.pdf'>
+<img src='./images/tf_tcc.svg'>
 
 # Requirments
 
