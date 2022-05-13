@@ -109,7 +109,8 @@ class DLRFomatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
-            'kernel_size': 25,
+            'input_seq': 2000,
+            'kernel_size': 50,
             'stride': 1,
             'hidden_dim': 128,
             'encoder_output_dim': 64,
@@ -137,6 +138,7 @@ class DLRFomatter(BaseForamtter):
             'use_cosine_similarity': True
         }
         return model_params, aug_params, loss_params
+
 
 if __name__ == "__main__":
     data_formatters = DLRFomatter()

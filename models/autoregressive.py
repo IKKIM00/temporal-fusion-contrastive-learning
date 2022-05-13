@@ -3,11 +3,29 @@ import torch.nn as nn
 import numpy as np
 from models.attention import Seq_Transformer
 from models.grn import gated_residual_network
+import math
 
 
-class TFCC(nn.Module):
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
+
+
+class BaseAR(nn.Module):
     def __init__(self, model_params, device, static_use):
-        super(TFCC, self).__init__()
+        super(BaseAR, self).__init__()
 
         params = dict(model_params)
         self.output_dim = int(params['encoder_output_dim'])
@@ -25,8 +43,8 @@ class TFCC(nn.Module):
         self.seq_transformer = Seq_Transformer(patch_size=self.output_dim, dim=int(params['hidden_dim']), depth=4,
                                                heads=4, mlp_dim=64)
         self.static_use = static_use
-        self.seq_len = int(params["static_feature_len"])
         if self.static_use:
+            self.seq_len = int(params["static_feature_len"]) + 1
             self.grn_list = nn.ModuleList()
             for i in range(self.seq_len):
                 grn = gated_residual_network(input_dim=self.output_dim,
@@ -69,3 +87,33 @@ class TFCC(nn.Module):
             nce += torch.sum(torch.diag(self.lsoftmax(total)))
         nce /= -1. * batch * self.timestep
         return nce, self.projection_head(c_t)
+
+
+class SimclrHARAR(nn.Module):
+    def __init__(self, hidden_dim1=256, hidden_dim2=128, hidden_dim3=50):
+        super(SimclrHARAR, self).__init__()
+        self.projection_head = nn.Sequential(
+            nn.Linear(96, hidden_dim1),
+            nn.ReLU(),
+            nn.Linear(hidden_dim1, hidden_dim2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim2, hidden_dim3)
+        )
+
+    def forward(self, feature_aug1):
+        return self.projection_head(feature_aug1)
+
+
+class CSSHARAR(nn.Module):
+    def __init__(self, model_params, projection_neuron=1024):
+        super(CSSHARAR, self).__init__()
+
+        params = dict(model_params)
+        self.input_seq = int(params['input_seq'])
+        self.projection_head = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(self.input_seq * 256, projection_neuron)
+        )
+
+    def forward(self, feature_aug1):
+        return self.projection_head(feature_aug1)
