@@ -119,7 +119,7 @@ class MobiactFormatter(BaseForamtter):
             'dropout': 0.35,
             'static_feature_len': 36,
             'feature_len': 35,
-            'num_epoch': 400,
+            'num_epoch': 500,
             'timestep': 20,
             'num_classes': 20,
             'beta1': 0.9,
@@ -133,7 +133,7 @@ class MobiactFormatter(BaseForamtter):
             'drop_last': True
         }
         loss_params = {
-            'num_epoch': 400,
+            'num_epoch': 500,
             'lr': 0.001,
             'batch_size': 512,
             'temperature': 0.2,
