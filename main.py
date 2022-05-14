@@ -82,7 +82,7 @@ formatter = config.make_data_formatter()
 
 # load_dataset
 dataset_dir = 'datasets/' + config.data_csv_path
-X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir)
+X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir, training_mode=training_mode)
 model_params, aug_params, loss_params = formatter.get_experiment_params()
 
 model_params_df = pd.DataFrame.from_dict(model_params, orient='index')

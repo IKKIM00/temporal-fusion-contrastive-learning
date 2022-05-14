@@ -42,7 +42,7 @@ class DLRFomatter(BaseForamtter):
         self._target_scalers = LabelEncoder()
         self._num_classes_per_cat_input = None
 
-    def split_data(self, dataset_dir):
+    def split_data(self, dataset_dir, training_mode):
         print('Formatting train-valid-test static data splits')
 
         train_dir, valid_dir, test_dir = 'train/', 'valid/', 'test/'
@@ -69,13 +69,13 @@ class DLRFomatter(BaseForamtter):
             observed_real_data = pad_sequence(observed_real_data)
             if idx == 0:
                 self.set_scalers(static_real_data, static_cate_data, observed_real_data)
-                X_train = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
+                X_train = self.transform_inputs(static_real_data, static_cate_data, observed_real_data, training_mode)
                 y_train = self._target_scalers.fit_transform(y)
             elif idx == 1:
-                X_valid = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
+                X_valid = self.transform_inputs(static_real_data, static_cate_data, observed_real_data, training_mode)
                 y_valid = self._target_scalers.fit_transform(y)
             else:
-                X_test = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
+                X_test = self.transform_inputs(static_real_data, static_cate_data, observed_real_data, training_mode)
                 y_test = self._target_scalers.fit_transform(y)
         return X_train, y_train, X_valid, y_valid, X_test, y_test
 
@@ -95,11 +95,15 @@ class DLRFomatter(BaseForamtter):
         self._cat_scalers = categorical_scalers
         self._num_classes_per_cat_input = num_classes
 
-    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data):
+    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data, training_mode):
         output = {}
-        output['observed_real'] = self._observe_real_scalers.transform(
-            observed_real_data.reshape(-1, observed_real_data.shape[-1])).reshape(observed_real_data.shape)
-        output['static_real'] = self._static_real_scalers.transform(static_real_data)
+        if training_mode != "self_supervised":
+            output['observed_real'] = self._observe_real_scalers.transform(
+                observed_real_data.reshape(-1, observed_real_data.shape[-1])).reshape(observed_real_data.shape)
+            output['static_real'] = self._static_real_scalers.transform(static_real_data)
+        else:
+            output['observed_real'] = np.array(observed_real_data)
+            output['static_real'] = np.array(static_real_data)
 
         for i in range(len(self.static_cate_columns)):
             string_df = np.asarray(static_cate_data)[Ellipsis, i]
@@ -115,7 +119,7 @@ class DLRFomatter(BaseForamtter):
             'hidden_dim': 128,
             'encoder_output_dim': 64,
             'dropout': 0.35,
-            'static_feature_len': 19,
+            'static_feature_len': 11,
             'feature_len': 19,
             'num_epoch': 100,
             'timestep': 8,
