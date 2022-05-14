@@ -19,7 +19,7 @@ class BaseFormatter(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def split_data(self, dataset_dir):
+    def split_data(self, dataset_dir, training_mode):
         """preprocess dataset"""
         raise NotImplementedError()
 
@@ -29,7 +29,7 @@ class BaseFormatter(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data):
+    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data, training_mode):
         """transform dataset using set scalers"""
         raise NotImplementedError()
 

@@ -43,7 +43,7 @@ class MobiactFormatter(BaseForamtter):
         self._target_scalers = LabelEncoder()
         self._num_classes_per_cat_input = None
 
-    def split_data(self, dataset_dir):
+    def split_data(self, dataset_dir, training_mode):
         print('Formatting train-valid-test static data splits')
 
         max_length = 2995
@@ -72,13 +72,13 @@ class MobiactFormatter(BaseForamtter):
             observed_real_data = pad_sequence(observed_real_data)
             if idx == 0:
                 self.set_scalers(static_real_data, static_cate_data, observed_real_data)
-                X_train = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
+                X_train = self.transform_inputs(static_real_data, static_cate_data, observed_real_data, training_mode)
                 y_train = self._target_scalers.fit_transform(y)
             elif idx == 1:
-                X_valid = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
+                X_valid = self.transform_inputs(static_real_data, static_cate_data, observed_real_data, training_mode)
                 y_valid = self._target_scalers.transform(y)
             else:
-                X_test = self.transform_inputs(static_real_data, static_cate_data, observed_real_data)
+                X_test = self.transform_inputs(static_real_data, static_cate_data, observed_real_data, training_mode)
                 y_test = self._target_scalers.transform(y)
 
         return X_train, y_train, X_valid, y_valid, X_test, y_test
@@ -99,10 +99,14 @@ class MobiactFormatter(BaseForamtter):
         self._cat_scalers = categorical_scalers
         self._num_classes_per_cat_input = num_classes
 
-    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data):
+    def transform_inputs(self, static_real_data, static_cate_data, observed_real_data, training_mode):
         output = {}
-        output['observed_real'] = self._observe_real_scalers.transform(observed_real_data.reshape(-1, observed_real_data.shape[-1])).reshape(observed_real_data.shape)
-        output['static_real'] = self._static_real_scalers.transform(static_real_data)
+        if training_mode != "self_supervised":
+            output['observed_real'] = self._observe_real_scalers.transform(observed_real_data.reshape(-1, observed_real_data.shape[-1])).reshape(observed_real_data.shape)
+            output['static_real'] = self._static_real_scalers.transform(static_real_data)
+        else:
+            output['observed_real'] = np.array(observed_real_data)
+            output['static_real'] = np.array(static_real_data)
 
         for i in range(len(self.static_cate_columns)):
             string_df = np.asarray(static_cate_data)[Ellipsis, i]
@@ -112,7 +116,7 @@ class MobiactFormatter(BaseForamtter):
     def get_model_params(self):
         model_params = {
             'input_size': 6,
-            'input_seq': 2995,
+            'input_seq': 2932,
             'kernel_size': 22,
             'stride': 1,
             'hidden_dim': 256,
@@ -120,7 +124,7 @@ class MobiactFormatter(BaseForamtter):
             'dropout': 0.35,
             'static_feature_len': 36,
             'feature_len': 35,
-            'num_epoch': 400,
+            'num_epoch': 500,
             'timestep': 20,
             'num_classes': 20,
             'beta1': 0.9,
@@ -129,12 +133,12 @@ class MobiactFormatter(BaseForamtter):
         aug_params = {
             'jitter_scale_ration': 0.001,
             'jitter_ratio': 0.001,
-            'max_seg': 5,
+            'max_seg': 3,
             'batch_size': 512,
             'drop_last': True
         }
         loss_params = {
-            'num_epoch': 400,
+            'num_epoch': 500,
             'lr': 0.001,
             'batch_size': 512,
             'temperature': 0.2,

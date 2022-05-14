@@ -28,7 +28,7 @@ def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, 
     for epoch in range(1, int(params['num_epoch']) + 1):
         if patience == 20:
             break
-        train_loss, train_acc = model_train(logger, encoder, autoregressive, static_encoder, method,
+        train_loss, train_acc = model_train(encoder, autoregressive, static_encoder, method,
                                             encoder_optimizer, ar_optimizer, static_encoder_optimizer,
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, autoregressive, static_encoder,
@@ -77,7 +77,7 @@ def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, 
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(logger, encoder, autoregressive, static_encoder, method, encoder_optimizer,
+def model_train(encoder, autoregressive, static_encoder, method, encoder_optimizer,
                 ar_optimizer, static_encoder_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
@@ -90,7 +90,6 @@ def model_train(logger, encoder, autoregressive, static_encoder, method, encoder
     for batch_idx, (observed_real, labels, aug1, aug2, static_input) in enumerate(train_loader):
         observed_real, labels = observed_real.float().to(device), labels.long().to(device)
         aug1, aug2 = aug1.float().to(device), aug2.float().to(device)
-        logger.debug(f"observed real shape: {aug1.shape}")
 
         # optimizer
         encoder_optimizer.zero_grad()
@@ -101,15 +100,18 @@ def model_train(logger, encoder, autoregressive, static_encoder, method, encoder
             static_context_variable, static_context_enrichment = static_encoder(static_input.to(device))
 
         if training_mode == "self_supervised":
-            if static_use:
+            if static_use and method == "TFCL":
                 predictions1, features1 = encoder(aug1, static_context_variable)
                 predictions2, features2 = encoder(aug2, static_context_variable)
+            elif method == "CPCHAR":
+                feature = encoder(observed_real)
             else:
                 predictions1, features1 = encoder(aug1)
                 predictions2, features2 = encoder(aug2)
 
-            features1 = F.normalize(features1, dim=1)
-            features2 = F.normalize(features2, dim=1)
+            if method == "TFCL":
+                features1 = F.normalize(features1, dim=1)
+                features2 = F.normalize(features2, dim=1)
 
             if static_use:
                 features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
@@ -122,6 +124,8 @@ def model_train(logger, encoder, autoregressive, static_encoder, method, encoder
 
                 zis = temp_cont_feat1
                 zjs = temp_cont_feat2
+            elif method == "CPCHAR":
+                nce, c_t = autoregressive(feature)
             else:
                 projection1 = autoregressive(features1)
                 projection2 = autoregressive(features2)
@@ -136,10 +140,15 @@ def model_train(logger, encoder, autoregressive, static_encoder, method, encoder
                                        bool(params['use_cosine_similarity']))
         if training_mode == "self_supervised" and method == "TFCL":
             lambda1 = 1
-            lambda2 = 0.7
+            lambda2 = 1.5
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
             loss = nt_xent_criterion(projection1, projection2)
+        elif method == "CPCHAR":
+            if training_mode == "self_supervised":
+                loss = nce
+            else:
+                loss = criterion(c_t, labels)
         else:
             prediction, features = output
             loss = criterion(prediction, labels)
@@ -183,7 +192,7 @@ def model_evaluate(encoder, autoregressive, static_encoder, method, test_loader,
             if training_mode == "self_supervised":
                 pass
             else:
-                if static_use and method == 'CNN':
+                if static_use and method == 'TFCL':
                     
                     output = encoder(data, static_context_variable)
                 else:

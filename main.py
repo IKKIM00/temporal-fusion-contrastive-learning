@@ -12,8 +12,8 @@ from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
-from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR
-from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder
+from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
+from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
@@ -82,7 +82,7 @@ formatter = config.make_data_formatter()
 
 # load_dataset
 dataset_dir = 'datasets/' + config.data_csv_path
-X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir)
+X_train, y_train, X_valid, y_valid, X_test, y_test = formatter.split_data(dataset_dir=dataset_dir, training_mode=training_mode)
 model_params, aug_params, loss_params = formatter.get_experiment_params()
 
 model_params_df = pd.DataFrame.from_dict(model_params, orient='index')
@@ -113,6 +113,9 @@ elif method == 'SimclrHAR':
 elif method == 'CSSHAR':
     encoder = CSSHAREncoder(model_params)
     autoregressive = CSSHARAR(model_params)
+elif method == 'CPCHAR':
+    encoder = CPCHAR(model_params)
+    autoregressive = CPCHARAR(model_params, device)
 else:
     logger.error(f"Not Supported Method")
 
@@ -151,6 +154,8 @@ if training_mode != "self_supervised":
         encoder.load_state_dict(model_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
         set_requires_grad(encoder, pretrained_dict, requires_grad=False)
+        if method == "CPCHAR":
+            set_requires_grad(autoregressive, pretrained_dict)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
