@@ -128,43 +128,40 @@ class CSSHAREncoder(nn.Module):
         self.num_classes = int(params['num_classes'])
 
         self.conv_block1 = nn.Sequential(
-            nn.Conv1d(self.input_channels, 64,
+            nn.Conv1d(self.input_channels, 32,
                       kernel_size=self.kernel_size,
-                      stride=self.stride,
-                      padding='same'),
-            nn.BatchNorm1d(64),
+                      stride=self.stride),
+            nn.BatchNorm1d(32),
             nn.ReLU()
         )
         self.conv_block2 = nn.Sequential(
-            nn.Conv1d(64, 128,
+            nn.Conv1d(32, 64,
                       kernel_size=self.kernel_size,
-                      stride=1,
-                      padding='same'),
-            nn.BatchNorm1d(128),
+                      stride=1),
+            nn.BatchNorm1d(64),
             nn.ReLU()
         )
         self.conv_block3 = nn.Sequential(
-            nn.Conv1d(128, 256,
+            nn.Conv1d(64, 96,
                       kernel_size=self.kernel_size,
-                      stride=1,
-                      padding='same'),
-            nn.BatchNorm1d(256),
+                      stride=1),
+            nn.BatchNorm1d(96),
             nn.ReLU()
         )
 
-        self.positional_encodig = PositionalEncoding(256)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8, batch_first=True)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+        self.positional_encodig = PositionalEncoding(96)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=96, nhead=1, batch_first=True)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=1)
 
         self.flatten = nn.Flatten()
         self.logits = nn.Sequential(
-            nn.Linear(self.input_seq * 256, 256),
+            nn.Linear(self.input_seq * 96, 96),
             nn.ReLU(),
             nn.Dropout(p=0.2),
-            nn.Linear(256, 128),
+            nn.Linear(96, 64),
             nn.ReLU(),
             nn.Dropout(p=0.2),
-            nn.Linear(128, self.num_classes)
+            nn.Linear(64, self.num_classes)
         )
 
     def forward(self, obs_input):

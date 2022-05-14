@@ -112,7 +112,7 @@ class CSSHARAR(nn.Module):
         self.input_seq = int(params['input_seq'])
         self.projection_head = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.input_seq * 256, projection_neuron)
+            nn.Linear(self.input_seq * 96, projection_neuron)
         )
 
     def forward(self, feature_aug1):
