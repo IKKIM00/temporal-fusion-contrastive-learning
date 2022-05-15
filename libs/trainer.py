@@ -100,15 +100,18 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
             static_context_variable, static_context_enrichment = static_encoder(static_input.to(device))
 
         if training_mode == "self_supervised":
-            if static_use:
+            if static_use and method == "TFCL":
                 predictions1, features1 = encoder(aug1, static_context_variable)
                 predictions2, features2 = encoder(aug2, static_context_variable)
+            elif method == "CPCHAR":
+                feature = encoder(observed_real)
             else:
                 predictions1, features1 = encoder(aug1)
                 predictions2, features2 = encoder(aug2)
 
-            features1 = F.normalize(features1, dim=1)
-            features2 = F.normalize(features2, dim=1)
+            if method == "TFCL":
+                features1 = F.normalize(features1, dim=1)
+                features2 = F.normalize(features2, dim=1)
 
             if static_use:
                 features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
@@ -121,6 +124,8 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
 
                 zis = temp_cont_feat1
                 zjs = temp_cont_feat2
+            elif method == "CPCHAR":
+                nce, c_t = autoregressive(feature)
             else:
                 projection1 = autoregressive(features1)
                 projection2 = autoregressive(features2)
@@ -139,6 +144,11 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
             loss = nt_xent_criterion(projection1, projection2)
+        elif method == "CPCHAR":
+            if training_mode == "self_supervised":
+                loss = nce
+            else:
+                loss = criterion(c_t, labels)
         else:
             prediction, features = output
             loss = criterion(prediction, labels)

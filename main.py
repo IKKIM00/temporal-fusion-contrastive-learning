@@ -12,8 +12,8 @@ from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
-from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR
-from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder
+from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
+from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
@@ -113,6 +113,9 @@ elif method == 'SimclrHAR':
 elif method == 'CSSHAR':
     encoder = CSSHAREncoder(model_params)
     autoregressive = CSSHARAR(model_params)
+elif method == 'CPCHAR':
+    encoder = CPCHAR(model_params)
+    autoregressive = CPCHARAR(model_params, device)
 else:
     logger.error(f"Not Supported Method")
 
@@ -151,6 +154,8 @@ if training_mode != "self_supervised":
         encoder.load_state_dict(model_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
         set_requires_grad(encoder, pretrained_dict, requires_grad=False)
+        if method == "CPCHAR":
+            set_requires_grad(autoregressive, pretrained_dict)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
