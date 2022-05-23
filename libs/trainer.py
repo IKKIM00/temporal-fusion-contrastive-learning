@@ -24,8 +24,11 @@ def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, 
     best_loss = 99999999999
     train_best_loss = 999999999
     patience = 0
-
-    for epoch in range(1, int(params['num_epoch']) + 1):
+    if training_mode == "self_supervised":
+        epochs = 300
+    else:
+        epochs = int(params['num_epoch'])
+    for epoch in range(1, epochs + 1):
         if patience == 20:
             break
         train_loss, train_acc = model_train(encoder, autoregressive, static_encoder, method,
@@ -116,7 +119,6 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
             if static_use:
                 features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
                 features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
-                # logger.debug(f"feature size: {features2.shape}")
 
             if method == "TFCL":
                 temp_cont_loss1, temp_cont_feat1 = autoregressive(features1, features2)
@@ -139,8 +141,8 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
         nt_xent_criterion = NTXentLoss(device, int(params['batch_size']), float(params['temperature']),
                                        bool(params['use_cosine_similarity']))
         if training_mode == "self_supervised" and method == "TFCL":
-            lambda1 = 1
-            lambda2 = 1.5
+            lambda1 = 1.5
+            lambda2 = 0.7
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
             loss = nt_xent_criterion(projection1, projection2)
