@@ -188,39 +188,3 @@ class CSSHAREncoder(nn.Module):
         x = self.flatten(x)
         logit = self.logits(x)
         return logit, x
-
-
-class CPCHAR(nn.Module):
-    def __init__(self, model_params):
-        super(CPCHAR, self).__init__()
-
-        params = dict(model_params)
-        self.input_channels = int(params['input_size'])
-
-        self.conv_block1 = nn.Sequential(
-            nn.Conv1d(in_channels=self.input_channels,
-                      out_channels=32,
-                      kernel_size=3),
-            nn.ReLU(),
-            nn.Dropout(p=0.2)
-        )
-        self.conv_block2 = nn.Sequential(
-            nn.Conv1d(in_channels=32,
-                      out_channels=64,
-                      kernel_size=3),
-            nn.ReLU(),
-            nn.Dropout(p=0.2)
-        )
-        self.conv_block3 = nn.Sequential(
-            nn.Conv1d(in_channels=64,
-                      out_channels=128,
-                      kernel_size=3),
-            nn.ReLU(),
-            nn.Dropout(p=0.2)
-        )
-
-    def forward(self, obs_input):
-        x = self.conv_block1(obs_input)
-        x = self.conv_block2(x)
-        x = self.conv_block3(x)
-        return x
