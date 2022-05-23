@@ -12,8 +12,8 @@ from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
-from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
-from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
+from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR
+from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
@@ -113,9 +113,6 @@ elif method == 'SimclrHAR':
 elif method == 'CSSHAR':
     encoder = CSSHAREncoder(model_params)
     autoregressive = CSSHARAR(model_params)
-elif method == 'CPCHAR':
-    encoder = CPCHAR(model_params)
-    autoregressive = CPCHARAR(model_params, device)
 else:
     logger.error(f"Not Supported Method")
 

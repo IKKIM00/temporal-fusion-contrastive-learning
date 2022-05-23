@@ -103,11 +103,9 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
             static_context_variable, static_context_enrichment = static_encoder(static_input.to(device))
 
         if training_mode == "self_supervised":
-            if static_use and method == "TFCL":
+            if static_use:
                 predictions1, features1 = encoder(aug1, static_context_variable)
                 predictions2, features2 = encoder(aug2, static_context_variable)
-            elif method == "CPCHAR":
-                feature = encoder(observed_real)
             else:
                 predictions1, features1 = encoder(aug1)
                 predictions2, features2 = encoder(aug2)
@@ -126,13 +124,11 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
 
                 zis = temp_cont_feat1
                 zjs = temp_cont_feat2
-            elif method == "CPCHAR":
-                nce, c_t = autoregressive(feature)
             else:
                 projection1 = autoregressive(features1)
                 projection2 = autoregressive(features2)
         else:
-            if static_use and method == "TFCL":
+            if static_use:
                 output = encoder(observed_real, static_context_variable)
             else:
                 output = encoder(observed_real)
