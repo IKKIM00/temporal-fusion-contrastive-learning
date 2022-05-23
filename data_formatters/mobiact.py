@@ -119,8 +119,8 @@ class MobiactFormatter(BaseForamtter):
             'input_seq': 2932,
             'kernel_size': 22,
             'stride': 1,
-            'hidden_dim': 256,
-            'encoder_output_dim': 128,
+            'hidden_dim': 128,
+            'encoder_output_dim': 256,
             'dropout': 0.35,
             'static_feature_len': 36,
             'feature_len': 35,
@@ -134,13 +134,13 @@ class MobiactFormatter(BaseForamtter):
             'jitter_scale_ration': 0.001,
             'jitter_ratio': 0.001,
             'max_seg': 3,
-            'batch_size': 512,
+            'batch_size': 32,
             'drop_last': True
         }
         loss_params = {
             'num_epoch': 500,
             'lr': 0.001,
-            'batch_size': 512,
+            'batch_size': 32,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }

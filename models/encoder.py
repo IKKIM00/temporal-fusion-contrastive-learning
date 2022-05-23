@@ -36,8 +36,8 @@ class BaseEncoder(nn.Module):
                       kernel_size=self.kernel_size,
                       stride=1),
             nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=16, stride=4)
+            nn.ReLU()
+#             nn.MaxPool1d(kernel_size=16, stride=4)
         )
 
         self.conv_block3 = nn.Sequential(
@@ -45,8 +45,8 @@ class BaseEncoder(nn.Module):
                       kernel_size=self.kernel_size,
                       stride=1),
             nn.BatchNorm1d(self.output_dim),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=16, stride=4),
+            nn.ReLU()
+#             nn.MaxPool1d(kernel_size=16, stride=4),
         )
         self.static_linear = nn.Linear(self.output_dim, 32)
         self.globalMaxPool1D = nn.AdaptiveMaxPool1d(1)
@@ -54,10 +54,10 @@ class BaseEncoder(nn.Module):
             nn.Linear(self.output_dim, self.output_dim // 2),
             nn.ReLU(),
             nn.Dropout(p=0.2),
-            nn.Linear(self.output_dim // 2, self.output_dim // 4),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(self.output_dim // 4, self.num_classes),
+            nn.Linear(self.output_dim // 2, self.num_classes),
+#             nn.ReLU(),
+#             nn.Dropout(p=0.2),
+#             nn.Linear(self.output_dim // 4, self.num_classes),
             nn.ReLU(),
             nn.Dropout(p=0.2)
         )
