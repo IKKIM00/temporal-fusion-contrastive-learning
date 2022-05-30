@@ -17,7 +17,7 @@ def choose_aug(sample, aug_methd, aug_params):
     elif aug_methd == 'jitter_scale':
         return scaling(jitter(sample, float(params['jitter_ratio'])), float(params['scale_ratio']))
     elif aug_methd == 'permutation':
-        return permutation(sample, aug_params['max_seg'])
+        return permutation(sample, max_segments=aug_params['max_seg'])
     elif aug_methd == 'permutation_jitter':
         return jitter(permutation(sample, max_segments=int(params['max_seg'])), float(params['jitter_ratio']))
     elif aug_methd == 'rotation':
@@ -29,7 +29,7 @@ def choose_aug(sample, aug_methd, aug_params):
     elif aug_methd == 'shuffle':
         return channel_shuffle(sample)
     elif aug_methd == 'warp':
-        return warp(sample, sigma=float(params['simga']), num_knots=int(params['num_knots']))
+        return warp(sample, sigma=float(params['sigma']), num_knots=int(params['num_knots']))
 
 
 def DataTransform(sample, aug_method1, aug_method2, aug_params):
@@ -41,9 +41,10 @@ def DataTransform(sample, aug_method1, aug_method2, aug_params):
     :param aug_params:
     :return:
     """
+    sample = sample.numpy()
     aug1 = choose_aug(sample, aug_method1, aug_params)
     aug2 = choose_aug(sample, aug_method2, aug_params)
-    return aug1, aug2
+    return torch.from_numpy(aug1), torch.from_numpy(aug2)
 
 
 def get_cubic_spline_interpolation(x_eval, x_data, y_data):
@@ -61,7 +62,7 @@ def warp(x, sigma=0.2, num_knots=4):
          spline_ys])
 
     cumulative_sum = np.cumsum(spline_values, axis=1)
-    distorted_time_stamps_all = cumulative_sum / cumulative_sum[:, -1][:, np.newaxis] * (X.shape[1] - 1)
+    distorted_time_stamps_all = cumulative_sum / cumulative_sum[:, -1][:, np.newaxis] * (x.shape[1] - 1)
 
     X_transformed = np.empty(shape=x.shape)
     for i, distorted_time_stamps in enumerate(distorted_time_stamps_all):
@@ -85,7 +86,7 @@ def channel_shuffle(x):
 
 def time_flip(x):
     # https://arxiv.org/abs/2011.11542
-    return x[:, ::-1, :]
+    return x[:, ::-1, :].copy()
 
 
 def invert(x):
@@ -98,8 +99,10 @@ def rotation(x):
     axes = np.random.uniform(low=-1, high=1, size=(x.shape[0], x.shape[2]))
     angles = np.random.uniform(low=-np.pi, high=np.pi, size=(x.shape[0]))
     matrices = axis_angle_to_rotation_matrix(axes, angles)
+    acc = np.matmul(x[:, :, :3], matrices)
+    gyro = np.matmul(x[:, :, 3:], matrices)
 
-    return np.matmul(x, matrices)
+    return np.concatenate((acc, gyro), axis=2)
 
 
 def axis_angle_to_rotation_matrix(axes, angles):
@@ -118,7 +121,7 @@ def axis_angle_to_rotation_matrix(axes, angles):
         [ x*xC+c,   xyC-zs,   zxC+ys ],
         [ xyC+zs,   y*yC+c,   yzC-xs ],
         [ zxC-ys,   yzC+xs,   z*zC+c ]])
-    matrix_transposed = np.transpose(m, axes=(2,0,1))
+    matrix_transposed = np.transpose(m, axes=(2, 0, 1))
     return matrix_transposed
 
 def jitter(x, sigma=0.8):
@@ -133,21 +136,16 @@ def scaling(x, sigma=1.1):
 
 
 def permutation(x, max_segments=5, seg_mode="random"):
-    orig_steps = np.arange(x.shape[1])
+    num_segs = np.random.randint(1, max_segments)
 
-    num_segs = np.random.randint(1, max_segments, size=(x.shape[0]))
+    segment_points_permuted = np.random.choice(x.shape[1], size=(x.shape[0], num_segs))
+    segment_points = np.sort(segment_points_permuted, axis=1)
 
-    ret = np.zeros_like(x)
-    for i, pat in enumerate(x):
-        if num_segs[i] > 1:
-            if seg_mode == "random":
-                split_points = np.random.choice(x.shape[1], size=(x.shape[0], num_segs))
-                split_points.sort()
-                splits = np.split(orig_steps, split_points)
-            else:
-                splits = np.array_split(orig_steps, num_segs[i])
-            warp = np.concatenate(np.random.permutation(splits))
-            ret[i] = warp
-        else:
-            ret[i] = pat
-    return torch.from_numpy(ret)
+    X_transformed = np.empty(shape=x.shape)
+    for i, (sample, segments) in enumerate(zip(x, segment_points)):
+        splitted = np.array(np.split(sample, np.append(segments, x.shape[1])))
+        np.random.shuffle(splitted)
+        concat = np.concatenate(splitted, axis=0)
+        X_transformed[i] = concat
+    return X_transformed
+

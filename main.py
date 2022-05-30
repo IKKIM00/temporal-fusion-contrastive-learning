@@ -79,6 +79,7 @@ logger.debug("=" * 45)
 logger.debug(f'Dataset: {data_type}')
 logger.debug(f'Method:  {method}')
 logger.debug(f'Mode:    {training_mode}')
+logger.debug(f'Augmentation 1: {aug_method1}, Augmentation 2: {aug_method2}')
 logger.debug("=" * 45)
 
 # exec(f'from config_files.{data_type}_Configs import Config as Configs')
