@@ -44,8 +44,7 @@ class BaseAR(nn.Module):
                                                heads=4, mlp_dim=64)
         self.static_use = static_use
         if self.static_use:
-            self.seq_len = 699 + 1
-#             self.seq_len = int(params["static_feature_len"]) + 1
+            self.seq_len = int(params["static_feature_len"]) + 1
             self.grn_list = nn.ModuleList()
             for i in range(self.seq_len):
                 grn = gated_residual_network(input_dim=self.output_dim,
@@ -54,6 +53,7 @@ class BaseAR(nn.Module):
                 self.grn_list.append(grn)
 
     def forward(self, feature_aug1, feature_aug2, static_info=None):
+
         seq_len = feature_aug1.shape[2]
 
         if self.static_use:
@@ -119,3 +119,43 @@ class CSSHARAR(nn.Module):
     def forward(self, feature_aug1):
         return self.projection_head(feature_aug1)
 
+class CPCHARAR(nn.Module):
+    def __init__(self, model_params, device):
+        super(CPCHARAR, self).__init__()
+
+        params = dict(model_params)
+        self.timestep = int(params['timestep'])
+        self.num_classes = int(params['num_classes'])
+        self.device = device
+
+        self.gru = nn.GRU(input_size=128,
+                          hidden_size=256,
+                          batch_first=True,
+                          num_layers=2)
+        self.Wk = nn.ModuleList([nn.Linear(256, 128) for i in range(self.timestep)])
+        self.lsoftmax = nn.LogSoftmax(dim=1)
+
+        self.logit = nn.Sequential(
+            nn.Linear(256,128),
+            nn.BatchNorm1d(128),
+            nn.Linear(128, self.num_classes)
+        )
+
+    def forward(self, feature_aug1):
+        feature_aug1 = feature_aug1.permute(0, 2, 1).contiguous() # b, seq_len, c
+        forward_seq = feature_aug1[:, :self.timestep + 1, :]
+        forward_seq = forward_seq.permute(1,0,2).contiguous()
+        batch = feature_aug1.shape[0]
+        c_t, h_n = self.gru(feature_aug1[:, : self.timestep + 1, :])  # b, seq_len, 2 * c
+        pred = torch.empty((self.timestep, batch, 128)).float().to(self.device)
+        c_t = c_t.permute(0, 2, 1).contiguous()
+#         print("shape : ", c_t.shape)
+        for i in np.arange(0, self.timestep):
+            linear = self.Wk[i]
+            pred[i] = linear(c_t[:, :, -1])
+        nce = 0
+        for i in np.arange(0, self.timestep):
+            total = torch.mm(forward_seq[i], torch.transpose(pred[i], 0, 1))
+            nce += torch.sum(torch.diag(self.lsoftmax(total)))
+        nce /= -1. * batch * self.timestep
+        return nce, c_t

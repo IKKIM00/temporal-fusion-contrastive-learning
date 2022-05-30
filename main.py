@@ -12,8 +12,9 @@ from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
-from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR
-from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder
+from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
+from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
+from models.logit import BaseLogit, SimclrLogit, CSSHARLogit, CPCHARLogit
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
@@ -106,17 +107,25 @@ static_encoder = StaticEncoder(model_params, device).to(device)
 
 if method == 'TFCL':
     encoder = BaseEncoder(model_params, static_use)
+    logit = BaseLogit(model_params,static_use)
     autoregressive = BaseAR(model_params, device, static_use)
 elif method == 'SimclrHAR':
     encoder = SimclrHAREncoder(model_params)
+    logit = SimclrLogit(model_params)
     autoregressive = SimclrHARAR()
 elif method == 'CSSHAR':
     encoder = CSSHAREncoder(model_params)
+    logit = CSSHARLogit(model_params)
     autoregressive = CSSHARAR(model_params)
+elif method == 'CPCHAR':
+    encoder = CPCHAR(model_params)
+    logit = CPCHARLogit(model_params)
+    autoregressive = CPCHARAR(model_params, device)
 else:
     logger.error(f"Not Supported Method")
 
 encoder = encoder.to(device)
+logit = logit.to(device)
 autoregressive = autoregressive.to(device)
 
 lr = loss_params['lr']
@@ -126,16 +135,17 @@ if training_mode != "self_supervised":
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
+    
     static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]
     model_dict = encoder.state_dict()
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
         pretrained_dict_copy = encoder_pretrained_dict.copy()
-        for i in pretrained_dict_copy.keys():
-            for j in del_list:
-                if j in i:
-                    del encoder_pretrained_dict[i]
+        # for i in pretrained_dict_copy.keys():
+        #     for j in del_list:
+        #         if j in i:
+        #             del encoder_pretrained_dict[i]
         model_dict.update(encoder_pretrained_dict)
         encoder.load_state_dict(model_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
@@ -143,10 +153,10 @@ if training_mode != "self_supervised":
     if training_mode == 'train_linear':
         pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
         pretrained_dict_copy = pretrained_dict.copy()
-        for i in pretrained_dict_copy.keys():
-            for j in del_list:
-                if j in i:
-                    del pretrained_dict[i]
+        # for i in pretrained_dict_copy.keys():
+        #     for j in del_list:
+        #         if j in i:
+        #             del pretrained_dict[i]
         model_dict.update(pretrained_dict)
         encoder.load_state_dict(model_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
@@ -155,6 +165,7 @@ if training_mode != "self_supervised":
             set_requires_grad(autoregressive, pretrained_dict)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
+logit_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 
@@ -162,12 +173,12 @@ static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
-Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, ar_optimizer,
+Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
         static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
         loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=static_use)
 
 if training_mode != "self_supervised":
-    outs = model_evaluate(encoder, autoregressive, static_encoder, method, test_loader, device,
+    outs = model_evaluate(encoder, logit, autoregressive, static_encoder, method, test_loader, device,
                           training_mode, loss_funcs[loss_func], static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
