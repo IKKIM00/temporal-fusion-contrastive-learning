@@ -5,7 +5,6 @@ import torch.nn as nn
 import os
 import numpy as np
 from datetime import datetime
-import matplotlib.pyplot as plt
 import argparse
 from libs.utils import _logger, set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
@@ -31,6 +30,9 @@ parser.add_argument('--seed', default=42, type=int)
 parser.add_argument('--model_type', default='TFCL', type=str, help='TFCL, SimclrHAR, CSSHAR')
 parser.add_argument('--training_mode', default='supervised', type=str)
 parser.add_argument('--loss_func', default='cross_entropy', type=str)
+parser.add_argument('--batch_size', default=512, type=int)
+parser.add_argument('--aug_method1', default='jitter_scale', type=str)
+parser.add_argument('--aug_method2', default='permutation_jitter', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--sampler_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--dataset', default='mobiact', type=str)
@@ -45,6 +47,9 @@ data_type = args.dataset
 training_mode = args.training_mode
 method = args.model_type
 loss_func = args.loss_func
+batch_size = args.batch_size
+aug_method1 = args.aug_method1
+aug_method2 = args.aug_method2
 run_description = args.run_description
 static_use = args.static_use
 sampler_use = args.sampler_use
@@ -94,7 +99,8 @@ aug_params_df.to_csv(experiment_log_dir + '/aug_params.csv')
 loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
-                                                         data_type, training_mode, use_sampler=sampler_use)
+                                                         data_type, aug_method1, aug_method2, batch_size, training_mode,
+                                                         use_sampler=sampler_use)
 logger.debug("Data loaded ...")
 
 loss_funcs = {

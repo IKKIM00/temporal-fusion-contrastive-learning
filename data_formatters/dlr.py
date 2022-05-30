@@ -128,11 +128,11 @@ class DLRFomatter(BaseForamtter):
             'beta2': 0.99
         }
         aug_params = {
-            'jitter_scale_ration': 0.001,
+            'scale_ratio': 0.001,
             'jitter_ratio': 0.001,
             'max_seg': 7,
-            'batch_size': 32,
-            'drop_last': True
+            'sigma': 0.2,
+            'num_knots': 4
         }
         loss_params = {
             'num_epoch': 100,

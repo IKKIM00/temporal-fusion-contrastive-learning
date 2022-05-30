@@ -142,11 +142,6 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
             loss = nt_xent_criterion(projection1, projection2)
-        elif method == "CPCHAR":
-            if training_mode == "self_supervised":
-                loss = nce
-            else:
-                loss = criterion(c_t, labels)
         else:
             prediction, features = output
             loss = criterion(prediction, labels)
