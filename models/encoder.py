@@ -37,7 +37,6 @@ class BaseEncoder(nn.Module):
                       stride=1),
             nn.BatchNorm1d(64),
             nn.ReLU()
-#             nn.MaxPool1d(kernel_size=16, stride=4)
         )
 
         self.conv_block3 = nn.Sequential(
@@ -46,7 +45,6 @@ class BaseEncoder(nn.Module):
                       stride=1),
             nn.BatchNorm1d(self.output_dim),
             nn.ReLU()
-#             nn.MaxPool1d(kernel_size=16, stride=4),
         )
         self.static_linear = nn.Linear(self.output_dim, 32)
         self.globalMaxPool1D = nn.AdaptiveMaxPool1d(1)
@@ -64,7 +62,6 @@ class BaseEncoder(nn.Module):
         # model_output_dim = self.feature_len
         #
         # self.logits = nn.Linear(model_output_dim * self.output_dim, self.num_classes)
-
 
     def forward(self, obs_input, static_input=None):
         x = self.conv_block1(obs_input)
