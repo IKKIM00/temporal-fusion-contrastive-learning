@@ -62,7 +62,7 @@ def Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_opti
                         'temporal_contr_model_state_dict': autoregressive.state_dict(),
                         'static_encoder_model_state_dict': static_encoder.state_dict()}
 
-            torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+            # torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
             best_encoder_model = encoder
             best_logit_model = logit
             best_autoregressive = autoregressive
@@ -81,8 +81,8 @@ def Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_opti
         test_loss, test_acc, _, _, precision, recall, f1 = model_evaluate(encoder, logit, autoregressive, static_encoder_model,
                                                                           method, test_loader, device,
                                                                           training_mode, loss_func, static_use)
-        logger.debug(f'Test loss      :{test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
-                     f'Test F1 score    :{f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
+        logger.debug(f'Test loss      : {test_loss:0.4f}\t | Test Accuracy      : {test_acc:0.4f}\n'
+                     f'Test F1 score    : {f1:0.4f}\t | Test Precision   : {precision:0.4f}\t | Test Recall  : {recall:0.4f}')
 
     logger.debug("\n################## Training is Done! #########################")
 
@@ -117,24 +117,13 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
                 features1 = encoder(aug1, static_context_variable)
                 features2 = encoder(aug2, static_context_variable)
 
-            elif method in ["TFCL","SimclrHAR", "CSSHAR"]:
+            elif method in ["TFCL", "SimclrHAR", "CSSHAR"]:
                 features1 = encoder(aug1)
                 features2 = encoder(aug2)
 
-            
-            else:
+            else: # in case of CPCHAR
                 feature = encoder(observed_real)
-            """
-            기존에는 Encoder 안에 Logit이 구현되어있었음
-            Logit을 분리하였기 때문에, self_supervised일 때
-            encoder의 output만 사용.
-            """
 
-
-
-            """
-            Encoder 학습 종료
-            """
             if method == "TFCL":
                 features1 = F.normalize(features1, dim=1)
                 features2 = F.normalize(features2, dim=1)
@@ -150,18 +139,21 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
                 zis = temp_cont_feat1
                 zjs = temp_cont_feat2
 
-            elif method == "CPCHAR":
-                nce, c_t = autoregressive(feature)
-            else:
+            elif method in ["SimclrHAR", "CSSHAR"]:
+
                 projection1 = autoregressive(features1)
-                projection2 = autoregressive(features2)
+                projection2 = autoregressive(features2) 
+
+            else: # in case of CPCHAR
+
+                nce, c_t = autoregressive(feature)
 
         else: # Thus, training_mode is not self supervised
 
             if static_use and method == "TFCL":
                 output = encoder(observed_real, static_context_variable)
                 output = logit(output)
-            elif  method in ["TFCL","SimclrHAR", "CSSHAR"]:
+            elif method in ["TFCL", "SimclrHAR", "CSSHAR"]:
                 enc_out = encoder(observed_real)
                 output = logit(enc_out)
             else:
@@ -180,8 +172,8 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
                                     bool(params['use_cosine_similarity']))
 
         if training_mode == "self_supervised" and method == "TFCL":
-            lambda1 = 1
-            lambda2 = 1.5
+            lambda1 = 1.5
+            lambda2 = 1
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
             
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
@@ -189,11 +181,7 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
 
         elif training_mode == "self_supervised" and method == "CPCHAR":
             loss = nce
-
         else:
-
-            # self_supervised mode가 아닐 때
-
             prediction = output
             loss = criterion(prediction, labels)
             total_acc.append(labels.eq(prediction.detach().argmax(dim=1)).float().mean())
@@ -202,7 +190,9 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
         loss.backward()
         encoder_optimizer.step()
         logit_optimizer.step()
-        ar_optimizer.step()
+
+        if (training_mode == 'self_supervised') or (method == 'CPCHAR' and training_mode == 'fine_tune'):
+            ar_optimizer.step()
         if static_use:
             static_encoder_optimizer.step()
 
@@ -241,18 +231,13 @@ def model_evaluate(encoder, logit, autoregressive, static_encoder, method, test_
                 if static_use and method == 'TFCL':
                     out = encoder(data, static_context_variable)
                     output = logit(out)
-                elif training_mode == "self_supervised" and method in ["TFCL","SimclrHAR", "CSSHAR"]:
+                elif method in ["TFCL", "SimclrHAR", "CSSHAR"]:
                     out = encoder(data)
                     output = logit(out)
                 else:
                     out = encoder(data)
-
-                    if method =='CPCHAR':
-                        nce, ar_out = autoregressive(out)
-                        output = logit(ar_out)
-                    else:
-                        output = logit(out)
-
+                    nce, ar_out = autoregressive(out)
+                    output = logit(ar_out)
 
 
             if training_mode != "self_supervised":

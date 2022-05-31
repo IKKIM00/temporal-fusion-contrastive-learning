@@ -135,34 +135,44 @@ if training_mode != "self_supervised":
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
+
+    if method == 'CPCHAR':
+        ar_pretrained_dict = chkpoint["temporal_contr_model_state_dict"]
     
     static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]
     model_dict = encoder.state_dict()
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
-        pretrained_dict_copy = encoder_pretrained_dict.copy()
-        # for i in pretrained_dict_copy.keys():
-        #     for j in del_list:
-        #         if j in i:
-        #             del encoder_pretrained_dict[i]
+        # pretrained_dict_copy = encoder_pretrained_dict.copy()
+        # # for i in pretrained_dict_copy.keys():
+        # #     for j in del_list:
+        # #         if j in i:
+        # #             del encoder_pretrained_dict[i]
         model_dict.update(encoder_pretrained_dict)
         encoder.load_state_dict(model_dict)
+        if method == 'CPCHAR':
+            autoregressive.load_state_dict(ar_pretrained_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
 
     if training_mode == 'train_linear':
-        pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
-        pretrained_dict_copy = pretrained_dict.copy()
-        # for i in pretrained_dict_copy.keys():
-        #     for j in del_list:
-        #         if j in i:
-        #             del pretrained_dict[i]
-        model_dict.update(pretrained_dict)
+        # pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
+        # pretrained_dict_copy = pretrained_dict.copy()
+        # # for i in pretrained_dict_copy.keys():
+        # #     for j in del_list:
+        # #         if j in i:
+        # #             del pretrained_dict[i]
+        model_dict.update(encoder_pretrained_dict)
         encoder.load_state_dict(model_dict)
+        
+        if method == 'CPCHAR':
+            autoregressive.load_state_dict(ar_pretrained_dict)
+            set_requires_grad(autoregressive, ar_pretrained_dict, requires_grad=False)
+
         static_encoder.load_state_dict(static_encoder_model_state_dict)
-        set_requires_grad(encoder, pretrained_dict, requires_grad=False)
-        if method == "CPCHAR":
-            set_requires_grad(autoregressive, pretrained_dict)
+        set_requires_grad(encoder, encoder_pretrained_dict, requires_grad=False)
+        
+
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 logit_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)

@@ -44,6 +44,7 @@ class BaseAR(nn.Module):
                                                heads=4, mlp_dim=64)
         self.static_use = static_use
         if self.static_use:
+            # self.seq_len = 699 + 1
             self.seq_len = int(params["static_feature_len"]) + 1
             self.grn_list = nn.ModuleList()
             for i in range(self.seq_len):

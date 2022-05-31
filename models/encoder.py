@@ -45,7 +45,7 @@ class BaseEncoder(nn.Module):
                       stride=1),
             nn.BatchNorm1d(self.output_dim),
             nn.ReLU(),
-            nn.MaxPool1d(kernel_size=16, stride=4),
+            nn.MaxPool1d(kernel_size=16, stride=4)
         )
         self.static_linear = nn.Linear(self.output_dim, 32)
         self.globalMaxPool1D = nn.AdaptiveMaxPool1d(1)
@@ -64,9 +64,6 @@ class BaseEncoder(nn.Module):
         return x
         
         # TFCL Encoder
-
-
-
 
 
 class SimclrHAREncoder(nn.Module):
@@ -113,10 +110,6 @@ class SimclrHAREncoder(nn.Module):
         # global Max Pooling 1D
         x = self.globalMaxPool1D(x).squeeze()
         return x
-
-
-
-
 
 class CSSHAREncoder(nn.Module):
     def __init__(self, model_params):
