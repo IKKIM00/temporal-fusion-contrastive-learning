@@ -16,7 +16,7 @@ warnings.filterwarnings('always')
 
 def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, ar_optimizer,
             static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger,
-            loss_params, loss_func, experiment_log_dir, training_mode, static_use=True):
+            loss_params, loss_func, experiment_log_dir, training_mode, batch_size, static_use=True):
 
     logger.debug("Training started ....")
 
@@ -31,7 +31,7 @@ def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, 
     for epoch in range(1, epochs + 1):
         if patience == 20:
             break
-        train_loss, train_acc = model_train(encoder, autoregressive, static_encoder, method,
+        train_loss, train_acc = model_train(encoder, autoregressive, static_encoder, method, batch_size,
                                             encoder_optimizer, ar_optimizer, static_encoder_optimizer,
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
         valid_loss, valid_acc, _, _, _, _, _ = model_evaluate(encoder, autoregressive, static_encoder,
@@ -80,7 +80,7 @@ def Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, 
     logger.debug("\n################## Training is Done! #########################")
 
 
-def model_train(encoder, autoregressive, static_encoder, method, encoder_optimizer,
+def model_train(encoder, autoregressive, static_encoder, method, batch_size,encoder_optimizer,
                 ar_optimizer, static_encoder_optimizer, criterion, train_loader, loss_params, device,
                 training_mode, static_use):
     total_loss = []
@@ -134,7 +134,7 @@ def model_train(encoder, autoregressive, static_encoder, method, encoder_optimiz
                 output = encoder(observed_real)
 
         params = dict(loss_params)
-        nt_xent_criterion = NTXentLoss(device, int(params['batch_size']), float(params['temperature']),
+        nt_xent_criterion = NTXentLoss(device, batch_size, float(params['temperature']),
                                        bool(params['use_cosine_similarity']))
         if training_mode == "self_supervised" and method == "TFCL":
             lambda1 = 1.5

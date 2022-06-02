@@ -171,7 +171,7 @@ if training_mode == "self_supervised":
 
 Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, ar_optimizer,
         static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
-        loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=static_use)
+        loss_funcs[loss_func], experiment_log_dir, training_mode, batch_size, static_use=static_use)
 
 if training_mode != "self_supervised":
     outs = model_evaluate(encoder, autoregressive, static_encoder, method, test_loader, device,
