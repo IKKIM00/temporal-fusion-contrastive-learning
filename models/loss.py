@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 import numpy as np
 
+
 class NTXentLoss(torch.nn.Module):
 
     def __init__(self, device, batch_size, temperature, use_cosine_similarity):
@@ -75,7 +76,8 @@ class FocalLoss(nn.modules.loss._WeightedLoss):
 
     def forward(self, input, target):
 
-        ce_loss = F.cross_entropy(input, target,reduction=self.reduction,weight=self.weight)
+        ce_loss = F.cross_entropy(input, target, reduction=self.reduction, weight=self.weight)
         pt = torch.exp(-ce_loss)
         focal_loss = ((1 - pt) ** self.gamma * ce_loss).mean()
         return focal_loss
+

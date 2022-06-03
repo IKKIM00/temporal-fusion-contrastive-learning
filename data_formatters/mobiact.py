@@ -122,7 +122,7 @@ class MobiactFormatter(BaseForamtter):
             'hidden_dim': 128,
             'encoder_output_dim': 256,
             'dropout': 0.35,
-            'static_feature_len': 699,
+            'static_feature_len': 36,
             'feature_len': 35,
             'num_epoch': 500,
             'timestep': 20,
@@ -131,16 +131,16 @@ class MobiactFormatter(BaseForamtter):
             'beta2': 0.99
         }
         aug_params = {
-            'jitter_scale_ration': 0.001,
+            'scale_ratio': 0.001,
             'jitter_ratio': 0.001,
-            'max_seg': 5,
-            'batch_size': 512,
-            'drop_last': True
+            'max_seg': 3,
+            'sigma': 0.2,
+            'num_knots': 4
         }
         loss_params = {
             'num_epoch': 500,
             'lr': 0.001,
-            'batch_size': 512,
+            'batch_size': 32,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }
@@ -149,4 +149,5 @@ class MobiactFormatter(BaseForamtter):
 if __name__ == '__main__':
     dataformatter = MobiactFormatter()
     dataset_dir = '../datasets/mobiact_preprocessed/'
-    X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir)
+    X_train, y_train, X_valid, y_valid, X_test, y_test = dataformatter.split_data(dataset_dir, 'self_supervised')
+    print(X_train)

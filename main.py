@@ -5,16 +5,14 @@ import torch.nn as nn
 import os
 import numpy as np
 from datetime import datetime
-import matplotlib.pyplot as plt
 import argparse
 from libs.utils import _logger, set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
 from libs.trainer import Trainer, model_evaluate
-from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
-from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
-from models.logit import BaseLogit, SimclrLogit, CSSHARLogit, CPCHARLogit
+from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR
+from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
@@ -32,6 +30,9 @@ parser.add_argument('--seed', default=42, type=int)
 parser.add_argument('--model_type', default='TFCL', type=str, help='TFCL, SimclrHAR, CSSHAR')
 parser.add_argument('--training_mode', default='supervised', type=str)
 parser.add_argument('--loss_func', default='cross_entropy', type=str)
+parser.add_argument('--batch_size', default=512, type=int)
+parser.add_argument('--aug_method1', default='jitter_scale', type=str)
+parser.add_argument('--aug_method2', default='permutation_jitter', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--sampler_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--dataset', default='mobiact', type=str)
@@ -46,6 +47,9 @@ data_type = args.dataset
 training_mode = args.training_mode
 method = args.model_type
 loss_func = args.loss_func
+batch_size = args.batch_size
+aug_method1 = args.aug_method1
+aug_method2 = args.aug_method2
 run_description = args.run_description
 static_use = args.static_use
 sampler_use = args.sampler_use
@@ -75,6 +79,7 @@ logger.debug("=" * 45)
 logger.debug(f'Dataset: {data_type}')
 logger.debug(f'Method:  {method}')
 logger.debug(f'Mode:    {training_mode}')
+logger.debug(f'Augmentation 1: {aug_method1}, Augmentation 2: {aug_method2}')
 logger.debug("=" * 45)
 
 # exec(f'from config_files.{data_type}_Configs import Config as Configs')
@@ -95,7 +100,8 @@ aug_params_df.to_csv(experiment_log_dir + '/aug_params.csv')
 loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
-                                                         data_type, training_mode, use_sampler=sampler_use)
+                                                         data_type, aug_method1, aug_method2, batch_size, training_mode,
+                                                         use_sampler=sampler_use)
 logger.debug("Data loaded ...")
 
 loss_funcs = {
@@ -107,25 +113,17 @@ static_encoder = StaticEncoder(model_params, device).to(device)
 
 if method == 'TFCL':
     encoder = BaseEncoder(model_params, static_use)
-    logit = BaseLogit(model_params,static_use)
     autoregressive = BaseAR(model_params, device, static_use)
 elif method == 'SimclrHAR':
     encoder = SimclrHAREncoder(model_params)
-    logit = SimclrLogit(model_params)
     autoregressive = SimclrHARAR()
 elif method == 'CSSHAR':
     encoder = CSSHAREncoder(model_params)
-    logit = CSSHARLogit(model_params)
     autoregressive = CSSHARAR(model_params)
-elif method == 'CPCHAR':
-    encoder = CPCHAR(model_params)
-    logit = CPCHARLogit(model_params)
-    autoregressive = CPCHARAR(model_params, device)
 else:
     logger.error(f"Not Supported Method")
 
 encoder = encoder.to(device)
-logit = logit.to(device)
 autoregressive = autoregressive.to(device)
 
 lr = loss_params['lr']
@@ -135,47 +133,35 @@ if training_mode != "self_supervised":
     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["model_state_dict"]
-
-    if method == 'CPCHAR':
-        ar_pretrained_dict = chkpoint["temporal_contr_model_state_dict"]
-    
     static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]
     model_dict = encoder.state_dict()
     del_list = ['logits']
 
     if training_mode == 'fine_tune':
-        # pretrained_dict_copy = encoder_pretrained_dict.copy()
-        # # for i in pretrained_dict_copy.keys():
-        # #     for j in del_list:
-        # #         if j in i:
-        # #             del encoder_pretrained_dict[i]
+        pretrained_dict_copy = encoder_pretrained_dict.copy()
+        for i in pretrained_dict_copy.keys():
+            for j in del_list:
+                if j in i:
+                    del encoder_pretrained_dict[i]
         model_dict.update(encoder_pretrained_dict)
         encoder.load_state_dict(model_dict)
-        if method == 'CPCHAR':
-            autoregressive.load_state_dict(ar_pretrained_dict)
         static_encoder.load_state_dict(static_encoder_model_state_dict)
 
     if training_mode == 'train_linear':
-        # pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
-        # pretrained_dict_copy = pretrained_dict.copy()
-        # # for i in pretrained_dict_copy.keys():
-        # #     for j in del_list:
-        # #         if j in i:
-        # #             del pretrained_dict[i]
-        model_dict.update(encoder_pretrained_dict)
+        pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
+        pretrained_dict_copy = pretrained_dict.copy()
+        for i in pretrained_dict_copy.keys():
+            for j in del_list:
+                if j in i:
+                    del pretrained_dict[i]
+        model_dict.update(pretrained_dict)
         encoder.load_state_dict(model_dict)
-        
-        if method == 'CPCHAR':
-            autoregressive.load_state_dict(ar_pretrained_dict)
-            set_requires_grad(autoregressive, ar_pretrained_dict, requires_grad=False)
-
         static_encoder.load_state_dict(static_encoder_model_state_dict)
-        set_requires_grad(encoder, encoder_pretrained_dict, requires_grad=False)
-        
-
+        set_requires_grad(encoder, pretrained_dict, requires_grad=False)
+        if method == "CPCHAR":
+            set_requires_grad(autoregressive, pretrained_dict)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
-logit_optimizer = torch.optim.Adam(logit.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 
@@ -183,12 +169,12 @@ static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
-Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
+Trainer(encoder, autoregressive, static_encoder, method, encoder_optimizer, ar_optimizer,
         static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
-        loss_funcs[loss_func], experiment_log_dir, training_mode, static_use=static_use)
+        loss_funcs[loss_func], experiment_log_dir, training_mode, batch_size, static_use=static_use)
 
 if training_mode != "self_supervised":
-    outs = model_evaluate(encoder, logit, autoregressive, static_encoder, method, test_loader, device,
+    outs = model_evaluate(encoder, autoregressive, static_encoder, method, test_loader, device,
                           training_mode, loss_funcs[loss_func], static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
