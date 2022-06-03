@@ -36,9 +36,7 @@ class BaseFormatter(abc.ABC):
     @abc.abstractmethod
     def get_model_params(self):
         """define model configs
-
         :returns - Dictionaires of fixed params
-
             model_params = {
                 'input_dim': 1,
                 'kernel_size': 8,

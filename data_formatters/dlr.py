@@ -116,13 +116,13 @@ class DLRFomatter(BaseForamtter):
             'input_seq': 1854,
             'kernel_size': 50,
             'stride': 1,
-            'hidden_dim': 128,
-            'encoder_output_dim': 256,
-            'dropout': 0.2,
-            'static_feature_len': 11,
+            'hidden_dim': 128,  
+            'encoder_output_dim': 64,
+            'dropout': 0.35,
+            'static_feature_len': 388,
             'feature_len': 19,
             'num_epoch': 100,
-            'timestep': 20,
+            'timestep': 8,
             'num_classes': 5,
             'beta1': 0.9,
             'beta2': 0.99
@@ -130,14 +130,14 @@ class DLRFomatter(BaseForamtter):
         aug_params = {
             'jitter_scale_ration': 0.001,
             'jitter_ratio': 0.001,
-            'max_seg': 7,
-            'batch_size': 32,
+            'max_seg': 5,
+            'batch_size': 128,
             'drop_last': True
         }
         loss_params = {
-            'num_epoch': 100,
+            'num_epoch': 500,
             'lr': 0.0001,
-            'batch_size': 32,
+            'batch_size': 128,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }
