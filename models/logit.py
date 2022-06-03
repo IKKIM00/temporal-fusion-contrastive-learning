@@ -16,12 +16,12 @@ class BaseLogit(nn.Module):
             nn.Linear(self.output_dim, self.output_dim // 2),
             nn.ReLU(),
             nn.Dropout(p=0.2),
-            nn.Linear(self.output_dim // 2, self.num_classes),
-            # nn.ReLU(),
-            # nn.Dropout(p=0.2),
-            # nn.Linear(self.output_dim // 4, self.num_classes),
+            nn.Linear(self.output_dim // 2, self.output_dim // 4),
             nn.ReLU(),
-            nn.Dropout(p=0.2)
+            nn.Dropout(p=0.2),
+            nn.Linear(self.output_dim // 4, self.num_classes)
+            # nn.ReLU(),
+            # nn.Dropout(p=0.2)
         )
         self.globalMaxPool1D = nn.AdaptiveMaxPool1d(1)
 

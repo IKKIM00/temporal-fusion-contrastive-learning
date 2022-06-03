@@ -124,15 +124,16 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
             else: # in case of CPCHAR
                 feature = encoder(observed_real)
 
-            if method == "TFCL":
-                features1 = F.normalize(features1, dim=1)
-                features2 = F.normalize(features2, dim=1)
 
             if static_use:
                 features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
                 features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
 
             if method == "TFCL":
+
+                features1 = F.normalize(features1, dim=1)
+                features2 = F.normalize(features2, dim=1)
+
                 temp_cont_loss1, temp_cont_feat1 = autoregressive(features1, features2)
                 temp_cont_loss2, temp_cont_feat2 = autoregressive(features2, features1)
 
@@ -172,8 +173,8 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
                                     bool(params['use_cosine_similarity']))
 
         if training_mode == "self_supervised" and method == "TFCL":
-            lambda1 = 1.5
-            lambda2 = 1
+            lambda1 = 1
+            lambda2 = 1.5
             loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
             
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
@@ -189,10 +190,10 @@ def model_train(encoder, logit, autoregressive, static_encoder, method, encoder_
         total_loss.append(loss.item())
         loss.backward()
         encoder_optimizer.step()
-        logit_optimizer.step()
+        if training_mode != 'self_supervised':
+            logit_optimizer.step()
+        ar_optimizer.step()
 
-        if (training_mode == 'self_supervised') or (method == 'CPCHAR' and training_mode == 'fine_tune'):
-            ar_optimizer.step()
         if static_use:
             static_encoder_optimizer.step()
 
