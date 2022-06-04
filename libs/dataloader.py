@@ -19,7 +19,7 @@ class MobiActDataset(Dataset):
         self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
         
-#         self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
+        self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
 
         self.len = self.observed_real.shape[0]
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes
