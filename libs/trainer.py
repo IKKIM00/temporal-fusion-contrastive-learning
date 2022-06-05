@@ -31,6 +31,7 @@ def Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_opti
     for epoch in range(1, epochs + 1):
         if patience == 20:
             break
+
         train_loss, train_acc = model_train(logger, encoder, logit, autoregressive, static_encoder, method, batch_size,
                                             encoder_optimizer, logit_optimizer, ar_optimizer, static_encoder_optimizer,
                                             loss_func, train_loader, loss_params, device, training_mode, static_use)
@@ -177,10 +178,9 @@ def model_train(logger, encoder, logit, autoregressive, static_encoder, method, 
 
         elif training_mode == "self_supervised" and method in ["SimclrHAR", "CSSHAR"]:
             loss = nt_xent_criterion(projection1, projection2)
-
         elif training_mode == "self_supervised" and method == "CPCHAR":
             loss = nce
-            
+
         else:
             prediction = output
             loss = criterion(prediction, labels)

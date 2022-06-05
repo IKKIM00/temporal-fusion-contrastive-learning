@@ -48,7 +48,6 @@ class BaseEncoder(nn.Module):
         )
         self.static_linear = nn.Linear(self.output_dim, 32)
 
-
     def forward(self, obs_input, static_input=None):
 
         x = self.conv_block1(obs_input)
