@@ -74,8 +74,8 @@ src_counter = 0
 
 # Logging
 # log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
-# logger = _logger(log_file_name)
-print(("=" * 45)
+#  = _(log_file_name)
+print("=" * 45)
 print(f'Dataset: {data_type}')
 print(f'Method:  {method}')
 print(f'Mode:    {training_mode}')
@@ -102,7 +102,7 @@ loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
                                                          data_type, aug_method1, aug_method2, batch_size, training_mode,
                                                          use_sampler=sampler_use)
-logger.debug("Data loaded ...")
+print("Data loaded ...")
 
 loss_funcs = {
     'cross_entropy': nn.CrossEntropyLoss(),
@@ -128,7 +128,7 @@ elif method == 'CPCHAR':
     logit = CPCHARLogit(model_params)
     autoregressive = CPCHARAR(model_params)
 else:
-    logger.error(f"Not Supported Method")
+    print(f"Not Supported Method")
 
 
 lr = loss_params['lr']
@@ -202,7 +202,7 @@ static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 
 
 Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
-        static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,
+        static_encoder_optimizer, train_loader, valid_loader, test_loader, device, loss_params,
         loss_funcs[loss_func], experiment_log_dir, training_mode, batch_size, static_use=static_use)
 
 if training_mode != "self_supervised":
@@ -210,4 +210,4 @@ if training_mode != "self_supervised":
                           training_mode, loss_funcs[loss_func], static_use)
     total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
-logger.debug(f"Training time is: {datetime.now() - start_time}")
+print(f"Training time is: {datetime.now() - start_time}")
