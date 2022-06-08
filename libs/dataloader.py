@@ -7,7 +7,6 @@ from libs.augmentation import DataTransform
 from torchsampler import ImbalancedDatasetSampler
 
 
-# +
 class MobiActDataset(Dataset):
     def __init__(self, X_data, y_data, aug_method1, aug_method2, aug_params, training_mode):
         super(MobiActDataset, self).__init__()
@@ -36,8 +35,6 @@ class MobiActDataset(Dataset):
     def __len__(self):
         return self.len
 
-
-# -
 
 class DLRDataset(Dataset):
     def __init__(self, X_data, y_data, aug_method1, aug_method2, aug_params, training_mode):

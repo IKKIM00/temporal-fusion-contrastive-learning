@@ -4,14 +4,169 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 import torch
-import torch.optim as optim
 import torch.nn.functional as F
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from models.loss import NTXentLoss
 
 import warnings
-
 warnings.filterwarnings('always')
+
+
+class SSL(pl.LightningModule):
+    def __init__(self, model_type, encoder, autoregressive, static_encoder, static_use,
+                 loss_params, lr, batch_size, criterion):
+        """
+        Train self-supervised learning method
+
+        :param model_type:
+        :param encoder:
+        :param autoregressive:
+        :param static_encoder:
+        :param static_use:
+        :param loss_params:
+        :param lr:
+        :param batch_size:
+        :param criterion:
+        """
+        super(SSL, self).__init__()
+        self.save_hyperparameters()
+
+        self.lr = lr
+        self.batch_size = batch_size
+        self.model_type = model_type
+        self.static_use = static_use
+        self.criterion = criterion
+
+        self.encoder = encoder
+        self.auto_regressive = autoregressive
+        if self.static_use:
+            self.static_encoder = static_encoder
+
+        self.loss_parmas = dict(loss_params)
+
+    def configure_optimizers(self):
+        encoder_optim = torch.optim.Adam(self.encoder.parameters(), lr=self.lr)
+        ar_optim = torch.optim.Adam(self.auto_regressive.parameters(), lr=self.lr)
+        if self.static_use:
+            static_optim = torch.optim.Adam(self.static_encoder.parameters(), lr=self.lr)
+            return encoder_optim, ar_optim, static_optim
+        return encoder_optim, ar_optim
+
+    def info_xtnex_loss(self, batch, mode='train'):
+        print(f"************Start Training************")
+
+        obs_real, labels, aug1, aug2, static = batch
+        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
+
+        nt_xent_criterion = NTXentLoss(obs_real.device, self.batch_size,
+                                       float(self.loss_parmas['temperature']),
+                                       bool(self.loss_parmas['use_cosine_similarity']))
+        # create static encoder and static output
+        if self.static_use and self.model_type == 'TFCL':
+            static_context_variable, static_context_enrichment = self.static_encoder(static)
+            features1 = self.encoder(aug1, static_context_variable)
+            features2 = self.encoder(aug2, static_context_variable)
+        elif self.model_type in ['TFCL', 'SimclrHAR', 'CSSHAR']:
+            features1 = self.encoder(aug1)
+            features2 = self.encoder(aug2)
+        elif self.model_type == 'CPCHAR':
+            feature = self.encoder(obs_real)
+
+        if self.model_type == 'TFCL':
+            features1 = F.normalize(features1, dim=1)
+            features2 = F.normalize(features2, dim=1)
+
+        if self.static_use:
+            features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
+            features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
+
+        if self.model_type == 'TFCL':
+            pred_cont_loss1, temp_cont_feat1 = self.autoregressive(features1, features2)
+            pred_cont_loss2, temp_cont_feat2 = self.autoregressive(features2, features1)
+
+            zis = temp_cont_feat1
+            zjs = temp_cont_feat2
+
+            lambda1 = float(self.loss_parmas['lambda1'])
+            lambda2 = float(self.loss_parmas['lambda2'])
+
+            loss = lambda1 * (pred_cont_loss1 + pred_cont_loss2) + lambda2 * nt_xent_criterion(zis, zjs)
+        elif self.model_type in ['SimclrHAR', 'CSSHAR']:
+            projection1 = self.auto_regressive(features1)
+            projection2 = self.auto_regressive(features2)
+
+            loss = nt_xent_criterion(projection1, projection2)
+        elif self.model_type == 'CPCHAR':
+            loss, c_t = self.auto_regressive(feature)
+
+        self.log(f"{mode}_loss", loss.item())
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        loss = self.info_xtnex_loss(batch)
+        return loss
+
+
+def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart=True):
+    checkpoint_callback = ModelCheckpoint(
+                dirpath=checkpoint_dir,
+                filename='ckp_last.pt',
+                auto_insert_metric_name=False,
+                monitor='val_loss',
+                mode='min',
+                save_weights_only=True
+            )
+
+    pretrained_filename = os.path.join(checkpoint_dir, "save_models", "ckp_last.pt")
+    if restart:
+        trainer = pl.Trainer(
+            default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
+            accelerator='gpu',
+            devices=gpus,
+            max_epochs=max_epochs,
+            callbacks=[checkpoint_callback]
+        )
+    else:
+        trainer = pl.Trainer(
+            default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
+            accelerator='gpu',
+            devices=gpus,
+            max_epochs=max_epochs,
+            callbacks=[checkpoint_callback],
+            resume_from_checkpoint=pretrained_filename
+        )
+
+    trainer.fit(model=model,
+                train_dataloaders=train_loader)
+
+    return model.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+
+
+def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, load_from, gpus, max_epochs=500, restart=True):
+    trainer = pl.Trainer(
+        default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
+        accelerator='gpu',
+        devices=gpus,
+        max_epochs=max_epochs,
+        callbacks=[
+            ModelCheckpoint(
+                dirpath=checkpoint_dir,
+                filename='ckp_last.pt',
+                auto_insert_metric_name=False,
+                monitor='val_loss',
+                mode='min',
+                save_weights_only=True
+            ),
+            EarlyStopping(
+                monitor='val_loss',
+                patience=20,
+                mode='min'
+            )
+        ]
+    )
+    pretrained_filename = os.path.join(checkpoint_dir, "ckp_last.pt")
 
 
 def Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,

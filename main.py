@@ -1,6 +1,7 @@
 import pandas as pd
 import torch
 import torch.nn as nn
+import pytorch_lightning as pl
 
 import os
 import numpy as np
@@ -10,7 +11,7 @@ from libs.utils import _logger, set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
-from libs.trainer import Trainer, model_evaluate
+from libs.trainer import SSL, train_ssl, Trainer, model_evaluate
 from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
 from models.logit import BaseLogit, SimclrLogit, CSSHARLogit, CPCHARLogit
 from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
@@ -26,7 +27,6 @@ parser = argparse.ArgumentParser()
 ######################## Model parameters ########################
 home_dir = os.getcwd()
 parser.add_argument('--experiment_description', default='Exp1', type=str)
-parser.add_argument('--run_description', default='run1', type=str)
 parser.add_argument('--seed', default=42, type=int)
 parser.add_argument('--model_type', default='TFCL', type=str, help='TFCL, SimclrHAR, CSSHAR')
 parser.add_argument('--training_mode', default='supervised', type=str)
@@ -51,7 +51,6 @@ loss_func = args.loss_func
 batch_size = args.batch_size
 aug_method1 = args.aug_method1
 aug_method2 = args.aug_method2
-run_description = args.run_description
 static_use = args.static_use
 sampler_use = args.sampler_use
 
@@ -59,14 +58,14 @@ print(f"Args: {args}")
 
 SEED = args.seed
 torch.manual_seed(SEED)
-torch.backends.cudnn.deterministic = False
+torch.backends.cudnn.determinstic = True
 torch.backends.cudnn.benchmark = False
 np.random.seed(SEED)
 
 logs_save_dir = args.logs_save_dir
 os.makedirs(logs_save_dir, exist_ok=True)
 
-experiment_log_dir = os.path.join(logs_save_dir, experiment_description, run_description, training_mode + f"_seed_{SEED}_{data_type}")
+experiment_log_dir = os.path.join(logs_save_dir, experiment_description, method, training_mode + f"_seed_{SEED}_{data_type}_aug1_{aug_method1}_aug2_{aug_method2}")
 os.makedirs(experiment_log_dir, exist_ok=True)
 
 # loop through domains
@@ -138,9 +137,29 @@ autoregressive = autoregressive.to(device)
 
 lr = loss_params['lr']
 
+if training_mode == "self_supervised":
+    copy_Files(os.path.join(logs_save_dir, experiment_description, method), data_type)
+    model = SSL(model_type=method,
+                encoder=encoder,
+                autoregressive=autoregressive,
+                static_encoder=static_encoder,
+                static_use=static_use,
+                loss_params=loss_params,
+                lr=lr,
+                batch_size=batch_size,
+                criterion=loss_funcs[loss_func]
+                )
+    trained_model = train_ssl(
+        train_loader=train_loader,
+        model=model,
+        checkpoint_dir=experiment_log_dir,
+        gpus=device
+        )
+
+
 if training_mode != "self_supervised":
     # load saved model
-    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, method, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
     encoder_pretrained_dict = chkpoint["encoder_model_state_dict"]
     
@@ -176,7 +195,7 @@ if training_mode != "self_supervised":
             set_requires_grad(autoregressive, ar_pretrained_dict, requires_grad=False)
 
         static_encoder.load_state_dict(static_encoder_model_state_dict)
-        set_requires_grad(encoder, pretrained_dict, requires_grad=False)
+        set_requires_grad(encoder, encoder_pretrained_dict, requires_grad=False)
 
 encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 
@@ -185,9 +204,6 @@ logit_optimizer = torch.optim.Adam(logit.parameters(), lr=lr, betas=(model_param
 ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
 static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
 
-
-if training_mode == "self_supervised":
-    copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), data_type)
 
 Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
         static_encoder_optimizer, train_loader, valid_loader, test_loader, device, logger, loss_params,

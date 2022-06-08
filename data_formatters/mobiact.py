@@ -140,7 +140,8 @@ class MobiactFormatter(BaseForamtter):
         loss_params = {
             'num_epoch': 500,
             'lr': 0.001,
-            'batch_size': 32,
+            'lambda1': 1.5,
+            'lambda2': 0.7,
             'temperature': 0.2,
             'use_cosine_similarity': True
         }
