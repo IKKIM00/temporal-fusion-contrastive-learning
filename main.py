@@ -42,7 +42,7 @@ parser.add_argument('--device', default='cpu', type=str)
 parser.add_argument('--home_path', default=home_dir, type=str)
 args = parser.parse_args()
 
-device = torch.device(args.device)
+device = args.device
 experiment_description = args.experiment_description
 data_type = args.dataset
 training_mode = args.training_mode
