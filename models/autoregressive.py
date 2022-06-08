@@ -24,7 +24,7 @@ class PositionalEncoding(nn.Module):
 
 
 class BaseAR(nn.Module):
-    def __init__(self, model_params, device, static_use):
+    def __init__(self, model_params, static_use):
         super(BaseAR, self).__init__()
 
         params = dict(model_params)
@@ -32,7 +32,6 @@ class BaseAR(nn.Module):
         self.timestep = int(params['timestep'])
         self.Wk = nn.ModuleList([nn.Linear(int(params['hidden_dim']), self.output_dim) for i in range(self.timestep)])
         self.lsoftmax = nn.LogSoftmax(dim=1)
-        self.device = device
 
         self.projection_head = nn.Sequential(
             nn.Linear(int(params['hidden_dim']), int(params['encoder_output_dim']) // 2),
@@ -57,7 +56,7 @@ class BaseAR(nn.Module):
         seq_len = feature_aug1.shape[2]
 
         if self.static_use:
-            enriched_feature_augs1 = torch.empty(feature_aug1.shape).float().to(self.device)
+            enriched_feature_augs1 = torch.empty(feature_aug1.shape).float()
 
             for i in range(seq_len):
                 enriched_feature_augs1[:, :, i] = self.grn_list[i](feature_aug1[:, :, i], static_info)
@@ -70,16 +69,16 @@ class BaseAR(nn.Module):
         z_aug2 = torch.permute(z_aug2, (0, 2, 1)).contiguous()
 
         batch = z_aug1.shape[0]
-        t_samples = torch.randint(seq_len - self.timestep, size=(1,)).long().to(self.device)
+        t_samples = torch.randint(seq_len - self.timestep, size=(1,)).long()
 
         nce = 0
-        encode_samples = torch.empty((self.timestep, batch, self.output_dim)).float().to(self.device)
+        encode_samples = torch.empty((self.timestep, batch, self.output_dim)).float()
 
         for i in np.arange(1, self.timestep + 1):
             encode_samples[i - 1] = z_aug2[:, t_samples + i, :].view(batch, self.output_dim)
         forward_seq = z_aug1[:, :t_samples + 1, :]  # transformer input value
         c_t = self.seq_transformer(forward_seq)
-        pred = torch.empty((self.timestep, batch, self.output_dim)).float().to(self.device)
+        pred = torch.empty((self.timestep, batch, self.output_dim)).float()
         for i in np.arange(0, self.timestep):
             linear = self.Wk[i]
             pred[i] = linear(c_t)
@@ -120,13 +119,12 @@ class CSSHARAR(nn.Module):
         return self.projection_head(feature_aug1)
 
 class CPCHARAR(nn.Module):
-    def __init__(self, model_params, device):
+    def __init__(self, model_params):
         super(CPCHARAR, self).__init__()
 
         params = dict(model_params)
         self.timestep = int(params['timestep'])
         self.num_classes = int(params['num_classes'])
-        self.device = device
 
         self.gru = nn.GRU(input_size=128,
                           hidden_size=256,
@@ -147,7 +145,7 @@ class CPCHARAR(nn.Module):
         forward_seq = forward_seq.permute(1,0,2).contiguous()
         batch = feature_aug1.shape[0]
         c_t, h_n = self.gru(feature_aug1[:, : self.timestep + 1, :])  # b, seq_len, 2 * c
-        pred = torch.empty((self.timestep, batch, 128)).float().to(self.device)
+        pred = torch.empty((self.timestep, batch, 128)).float()
         c_t = c_t.permute(0, 2, 1).contiguous()
 #         print("shape : ", c_t.shape)
         for i in np.arange(0, self.timestep):

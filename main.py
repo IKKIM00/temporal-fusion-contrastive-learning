@@ -7,7 +7,7 @@ import os
 import numpy as np
 from datetime import datetime
 import argparse
-from libs.utils import _logger, set_requires_grad
+from libs.utils import set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
@@ -109,12 +109,12 @@ loss_funcs = {
     'focal': FocalLoss()
 }
 
-static_encoder = StaticEncoder(model_params, device).to(device)
+static_encoder = StaticEncoder(model_params)
 
 if method == 'TFCL':
     encoder = BaseEncoder(model_params, static_use)
     logit = BaseLogit(model_params,static_use)
-    autoregressive = BaseAR(model_params, device, static_use)
+    autoregressive = BaseAR(model_params, static_use)
 elif method == 'SimclrHAR':
     encoder = SimclrHAREncoder(model_params)
     logit = SimclrLogit(model_params)
@@ -126,14 +126,10 @@ elif method == 'CSSHAR':
 elif method == 'CPCHAR':
     encoder = CPCHAR(model_params)
     logit = CPCHARLogit(model_params)
-    autoregressive = CPCHARAR(model_params, device)
+    autoregressive = CPCHARAR(model_params)
 else:
     logger.error(f"Not Supported Method")
 
-
-encoder = encoder.to(device)
-logit = logit.to(device)
-autoregressive = autoregressive.to(device)
 
 lr = loss_params['lr']
 

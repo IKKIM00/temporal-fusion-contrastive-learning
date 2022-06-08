@@ -46,6 +46,8 @@ class DLRDataset(Dataset):
         self.static_cate = torch.from_numpy(X_data['gender'])
         self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
+        
+        self.len = self.observed_real.shape[0]
 
         self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
 
@@ -53,7 +55,6 @@ class DLRDataset(Dataset):
             self.aug1, self.aug2 = DataTransform(self.observed_real, aug_method1, aug_method2, aug_params)
             self.aug1, self.aug2 = self.aug1.permute(0, 2, 1).contiguous(), self.aug2.permute(0, 2, 1).contiguous()
 
-        self.len = self.observed_real.shape[0]
         self.observed_real = self.observed_real.permute(0, 2, 1).contiguous()
 
     def __getitem__(self, index):
@@ -85,22 +86,22 @@ def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_param
                                                    sampler=ImbalancedDatasetSampler(train_dataset,
                                                                                     callback_get_label=get_y_label),
                                                    drop_last=True,
-                                                   num_workers=0)
+                                                   num_workers=10)
     else:
         train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                    batch_size=batch_size,
                                                    shuffle=True,
                                                    drop_last=True,
-                                                   num_workers=0)
+                                                   num_workers=10)
     valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
                                                batch_size=batch_size // 4,
                                                drop_last=True,
                                                shuffle=False,
-                                               num_workers=0)
+                                               num_workers=10)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                               batch_size=batch_size // 2,
                                               shuffle=False,
-                                              num_workers=0)
+                                              num_workers=10)
 
     return train_loader, valid_loader, test_loader
 

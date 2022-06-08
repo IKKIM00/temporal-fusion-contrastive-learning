@@ -31,7 +31,7 @@ class SSL(pl.LightningModule):
         :param criterion:
         """
         super(SSL, self).__init__()
-        self.save_hyperparameters()
+#         self.save_hyperparameters()
 
         self.lr = lr
         self.batch_size = batch_size
@@ -40,7 +40,7 @@ class SSL(pl.LightningModule):
         self.criterion = criterion
 
         self.encoder = encoder
-        self.auto_regressive = autoregressive
+        self.autoregressive = autoregressive
         if self.static_use:
             self.static_encoder = static_encoder
 
@@ -48,7 +48,7 @@ class SSL(pl.LightningModule):
 
     def configure_optimizers(self):
         encoder_optim = torch.optim.Adam(self.encoder.parameters(), lr=self.lr)
-        ar_optim = torch.optim.Adam(self.auto_regressive.parameters(), lr=self.lr)
+        ar_optim = torch.optim.Adam(self.autoregressive.parameters(), lr=self.lr)
         if self.static_use:
             static_optim = torch.optim.Adam(self.static_encoder.parameters(), lr=self.lr)
             return encoder_optim, ar_optim, static_optim
@@ -104,14 +104,15 @@ class SSL(pl.LightningModule):
         self.log(f"{mode}_loss", loss.item())
         return loss
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx):
         loss = self.info_xtnex_loss(batch)
         return loss
 
 
 def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart=True):
+#     os.makedirs(os.path.join(checkpoint_dir, "saved_models"), exist_ok=True)
     checkpoint_callback = ModelCheckpoint(
-                dirpath=checkpoint_dir,
+                dirpath=os.path.join(checkpoint_dir, "saved_models"),
                 filename='ckp_last.pt',
                 auto_insert_metric_name=False,
                 monitor='val_loss',
@@ -119,28 +120,31 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart
                 save_weights_only=True
             )
 
-    pretrained_filename = os.path.join(checkpoint_dir, "save_models", "ckp_last.pt")
+    pretrained_filename = os.path.join(checkpoint_dir, "saved_models", "ckp_last.pt")
     if restart:
         trainer = pl.Trainer(
             default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
             accelerator='gpu',
+            strategy='ddp',
             devices=gpus,
             max_epochs=max_epochs,
-            callbacks=[checkpoint_callback]
+            callbacks=[checkpoint_callback],
+            checkpoint_callback=True
         )
     else:
         trainer = pl.Trainer(
             default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
             accelerator='gpu',
+            strategy='ddp',
             devices=gpus,
             max_epochs=max_epochs,
             callbacks=[checkpoint_callback],
             resume_from_checkpoint=pretrained_filename
         )
-
+    
     trainer.fit(model=model,
                 train_dataloaders=train_loader)
-
+#     logger.debug(f"{trainer.checkpoint_callback.best_model_path}")
     return model.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
 
 
