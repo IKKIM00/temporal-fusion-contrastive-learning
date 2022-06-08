@@ -73,14 +73,14 @@ counter = 0
 src_counter = 0
 
 # Logging
-log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
-logger = _logger(log_file_name)
-logger.debug("=" * 45)
-logger.debug(f'Dataset: {data_type}')
-logger.debug(f'Method:  {method}')
-logger.debug(f'Mode:    {training_mode}')
-logger.debug(f'Augmentation 1: {aug_method1}, Augmentation 2: {aug_method2}')
-logger.debug("=" * 45)
+# log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
+# logger = _logger(log_file_name)
+print(("=" * 45)
+print(f'Dataset: {data_type}')
+print(f'Method:  {method}')
+print(f'Mode:    {training_mode}')
+print(f'Augmentation 1: {aug_method1}, Augmentation 2: {aug_method2}')
+print("=" * 45)
 
 # exec(f'from config_files.{data_type}_Configs import Config as Configs')
 config = ExperimentConfig(data_type)
