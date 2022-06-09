@@ -6,6 +6,7 @@
 
 - `python` == 3.9
 - `pytorch` == 1.10.1
+- `pytorch-lightning` == 1.6.4
 
 # How to start
 
