@@ -31,7 +31,7 @@ class SSL(pl.LightningModule):
         :param criterion:
         """
         super(SSL, self).__init__()
-#         self.save_hyperparameters()
+        self.save_hyperparameters()
 
         self.lr = lr
         self.batch_size = batch_size
@@ -55,12 +55,10 @@ class SSL(pl.LightningModule):
         return encoder_optim, ar_optim
 
     def info_xtnex_loss(self, batch, mode='train'):
-        print(f"************Start Training************")
-
         obs_real, labels, aug1, aug2, static = batch
         obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
 
-        nt_xent_criterion = NTXentLoss(obs_real.device, self.batch_size,
+        nt_xent_criterion = NTXentLoss(obs_real.device, obs_real.shape[0],
                                        float(self.loss_parmas['temperature']),
                                        bool(self.loss_parmas['use_cosine_similarity']))
         # create static encoder and static output
@@ -91,7 +89,7 @@ class SSL(pl.LightningModule):
 
             lambda1 = float(self.loss_parmas['lambda1'])
             lambda2 = float(self.loss_parmas['lambda2'])
-
+            
             loss = lambda1 * (pred_cont_loss1 + pred_cont_loss2) + lambda2 * nt_xent_criterion(zis, zjs)
         elif self.model_type in ['SimclrHAR', 'CSSHAR']:
             projection1 = self.auto_regressive(features1)
@@ -109,33 +107,32 @@ class SSL(pl.LightningModule):
         return loss
 
 
-def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart=True):
+def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=True):
 #     os.makedirs(os.path.join(checkpoint_dir, "saved_models"), exist_ok=True)
     checkpoint_callback = ModelCheckpoint(
                 dirpath=os.path.join(checkpoint_dir, "saved_models"),
-                filename='ckp_last.pt',
+                filename='ckp_last',
                 auto_insert_metric_name=False,
-                monitor='val_loss',
+                monitor='train_loss',
                 mode='min',
-                save_weights_only=True
+                save_weights_only=False
             )
 
-    pretrained_filename = os.path.join(checkpoint_dir, "saved_models", "ckp_last.pt")
+    pretrained_filename = os.path.join(checkpoint_dir, "saved_models", "ckp_last.ckpt")
     if restart:
         trainer = pl.Trainer(
             default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
             accelerator='gpu',
-            strategy='ddp',
+            strategy='dp',
             devices=gpus,
             max_epochs=max_epochs,
-            callbacks=[checkpoint_callback],
-            checkpoint_callback=True
+            callbacks=[checkpoint_callback]
         )
     else:
         trainer = pl.Trainer(
             default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
             accelerator='gpu',
-            strategy='ddp',
+            strategy='dp',
             devices=gpus,
             max_epochs=max_epochs,
             callbacks=[checkpoint_callback],
@@ -144,8 +141,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart
     
     trainer.fit(model=model,
                 train_dataloaders=train_loader)
-#     logger.debug(f"{trainer.checkpoint_callback.best_model_path}")
-    return model.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+    return trainer.checkpoint_callback.best_model_path
 
 
 def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, load_from, gpus, max_epochs=500, restart=True):

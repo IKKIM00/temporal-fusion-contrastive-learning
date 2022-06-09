@@ -17,9 +17,11 @@ class MobiActDataset(Dataset):
         self.static_cate = torch.from_numpy(X_data['gender'])
         self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
+        
+        self.len = self.observed_real.shape[1]
 
         self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
-        self.len = self.observed_real.shape[0]
+
         if training_mode == "self_supervised":  # no need to apply Augmentations in other modes
             self.aug1, self.aug2 = DataTransform(self.observed_real, aug_method1, aug_method2, aug_params)
             self.aug1, self.aug2 = self.aug1.permute(0, 2, 1).contiguous(), self.aug2.permute(0, 2, 1).contiguous()
@@ -47,8 +49,7 @@ class DLRDataset(Dataset):
         self.static = torch.cat([self.static_real, self.static_cate.unsqueeze(-1)], dim=1)
         self.y_data = torch.from_numpy(y_data)
         
-        self.len = self.observed_real.shape[0]
-
+        self.len = self.observed_real.shape[1]
         self.observed_real = torch.permute(self.observed_real, (1, 0, 2)).contiguous()
 
         if training_mode == "self_supervised":
