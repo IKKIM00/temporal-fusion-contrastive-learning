@@ -139,8 +139,7 @@ if training_mode == "self_supervised":
                 static_use=static_use,
                 loss_params=loss_params,
                 lr=lr,
-                batch_size=batch_size,
-                criterion=loss_funcs[loss_func]
+                batch_size=batch_size
                 )
     trained_model_path = train_ssl(
         train_loader=train_loader,
@@ -149,7 +148,20 @@ if training_mode == "self_supervised":
         gpus=device
         )
     
-    model = SSL.load_from_checkpoint(checkpoint_path=trained_model_path)
+    best_model = SSL.load_from_checkpoint(checkpoint_path=trained_model_path)
+
+    trained_encoder_state_dict = best_model.encoder.state_dict()
+    encoder.load_state_dict(trained_encoder_state_dict)
+
+    trained_static_encoder_state_dict = best_model.static_encoder.state_dict()
+    static_encoder.load_state_dict(trained_static_encoder_state_dict)
+
+    if method == 'CPCHAR':
+        trained_autoregressive_state_dict = best_model.autoregressive.state_dict()
+        autoregressive.load_state_dict(trained_autoregressive_state_dict)
+
+    print(f"Start Fine Tuning")
+
 
 
 if training_mode != "self_supervised":

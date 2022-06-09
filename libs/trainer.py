@@ -16,7 +16,7 @@ warnings.filterwarnings('always')
 
 class SSL(pl.LightningModule):
     def __init__(self, model_type, encoder, autoregressive, static_encoder, static_use,
-                 loss_params, lr, batch_size, criterion):
+                 loss_params, lr, batch_size):
         """
         Train self-supervised learning method
 
@@ -37,7 +37,6 @@ class SSL(pl.LightningModule):
         self.batch_size = batch_size
         self.model_type = model_type
         self.static_use = static_use
-        self.criterion = criterion
 
         self.encoder = encoder
         self.autoregressive = autoregressive
@@ -107,8 +106,72 @@ class SSL(pl.LightningModule):
         return loss
 
 
+class DownstreamTask(pl.LightningModule):
+    def __init__(self, model_type, training_mode, encoder, static_encoder, logits, static_use, criterion, lr,
+                 autoregressive=None):
+        super(DownstreamTask, self).__init__()
+        self.save_hyperparameters()
+
+        self.model_type = model_type
+        self.training_mode = training_mode
+        self.criterion = criterion
+        self.lr = lr
+        self.static_use = static_use
+
+        self.encoder = encoder
+        self.autoregressive = autoregressive
+        self.logits = logits
+        if self.static_use:
+            self.static_encoder = static_encoder
+
+    def configure_optimizers(self):
+        logits_optim = torch.optim.Adam(self.logits.parameters(), lr=self.lr)
+        optim_list = [logits_optim]
+
+        if self.training_mode == 'fine_tune':
+            encoder_optim = torch.optim.Adam(self.encoder.parameters(), lr=self.lr)
+            optim_list.append(encoder_optim)
+
+        if self.static_use:
+            static_encoder_optim = torch.optim.Adam(self.static_encoder.parameters(), lr=self.lr)
+            optim_list.append(static_encoder_optim)
+        return optim_list
+
+    def _forward(self, batch, mode='train'):
+        obs_real, labels, aug1, aug2, static = batch
+        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
+
+        if self.static_use and self.model_type == 'TFCL':
+            static_context_variable, static_context_enrichment = self.static_encoder(static)
+            output = self.encoder(obs_real, static_context_enrichment)
+        elif self.model_type in ['TFCL', 'SimclrHAR', 'CSSHAR']:
+            output = self.encoder(obs_real)
+        elif self.model_type == 'CPCHAR':
+            output = self.encoder
+            cpc_loss, output = self.autoregressive(output)
+        output = self.logits(output)
+
+        loss = self.criterion(output, labels)
+        acc = labels.eq(output.detach().argmax(dim=1)).float().mean()
+
+        self.log(f"{mode}_loss", loss.item())
+        self.log(f"{mode}_acc", acc)
+        return loss, acc
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        loss, acc = self._forward(batch, mode='train')
+        return loss, acc
+
+    def validation_step(self, batch, batch_idx, optimizer_idx):
+        loss, acc = self._forward(batch, mode='val')
+        return loss, acc
+
+    def test_step(self, batch, batch_idx, optimizer_idx):
+        loss, acc = self._forward(batch, mode='test')
+        return loss, acc
+
+
 def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=True):
-#     os.makedirs(os.path.join(checkpoint_dir, "saved_models"), exist_ok=True)
     checkpoint_callback = ModelCheckpoint(
                 dirpath=os.path.join(checkpoint_dir, "saved_models"),
                 filename='ckp_last',
@@ -116,7 +179,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=T
                 monitor='train_loss',
                 mode='min',
                 save_weights_only=False
-            )
+    )
 
     pretrained_filename = os.path.join(checkpoint_dir, "saved_models", "ckp_last.ckpt")
     if restart:
@@ -144,29 +207,38 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=T
     return trainer.checkpoint_callback.best_model_path
 
 
-def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, load_from, gpus, max_epochs=500, restart=True):
+def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, training_mode, gpus,
+                          max_epochs=500):
+    checkpoint_callback = ModelCheckpoint(
+                                dirpath=checkpoint_dir,
+                                filename=f"{training_mode}_ckpt",
+                                auto_insert_metric_name=False,
+                                monitor='val_loss',
+                                mode='min',
+                                save_weights_only=True
+    )
+    earlystop_callback = EarlyStopping(
+                            monitor='val_loss',
+                            patience=20,
+                            mode='min'
+    )
+
     trainer = pl.Trainer(
         default_root_dir=os.path.join(checkpoint_dir, "saved_models"),
         accelerator='gpu',
+        strategy='dp',
         devices=gpus,
         max_epochs=max_epochs,
-        callbacks=[
-            ModelCheckpoint(
-                dirpath=checkpoint_dir,
-                filename='ckp_last.pt',
-                auto_insert_metric_name=False,
-                monitor='val_loss',
-                mode='min',
-                save_weights_only=True
-            ),
-            EarlyStopping(
-                monitor='val_loss',
-                patience=20,
-                mode='min'
-            )
-        ]
+        callbacks=[checkpoint_callback, earlystop_callback]
     )
-    pretrained_filename = os.path.join(checkpoint_dir, "ckp_last.pt")
+    trainer.fit(model=model,
+                train_dataloaders=train_loader,
+                val_dataloaders=valid_loader)
+    best_model = DownstreamTask.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+    test_result = trainer.predict(model=best_model,
+                                  dataloaders=test_loader,
+                                  return_predictions=True)
+    return test_result
 
 
 def Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
