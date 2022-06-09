@@ -8,18 +8,23 @@ import numpy as np
 from datetime import datetime
 import argparse
 from libs.utils import set_requires_grad
-from libs.utils import _calc_metrics, copy_Files
+from libs.utils import copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
-from libs.trainer import SSL, train_ssl, Trainer, model_evaluate
+from libs.trainer import SSL, train_ssl, DownstreamTask, train_downstream_task, Supervised
 from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
 from models.logit import BaseLogit, SimclrLogit, CSSHARLogit, CPCHARLogit
 from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
+# +
 import warnings
 warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+
+import logging
+logging.getLogger("lightning").setLevel(logging.WARNING)
+# -
 
 start_time = datetime.now()
 
@@ -65,16 +70,13 @@ np.random.seed(SEED)
 logs_save_dir = args.logs_save_dir
 os.makedirs(logs_save_dir, exist_ok=True)
 
-experiment_log_dir = os.path.join(logs_save_dir, experiment_description, method, training_mode + f"_seed_{SEED}_{data_type}_aug1_{aug_method1}_aug2_{aug_method2}")
+experiment_log_dir = os.path.join(logs_save_dir, method, experiment_description, training_mode + f"_seed_{SEED}_{data_type}_aug1_{aug_method1}_aug2_{aug_method2}")
 os.makedirs(experiment_log_dir, exist_ok=True)
 
 # loop through domains
 counter = 0
 src_counter = 0
 
-# Logging
-# log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
-#  = _(log_file_name)
 print("=" * 45)
 print(f'Dataset: {data_type}')
 print(f'Method:  {method}')
@@ -135,6 +137,13 @@ lr = loss_params['lr']
 
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, method), data_type)
+    
+    print()
+    print('-' * 20)
+    print("Start Self-Supervised Learning")
+    print('-' * 20)
+    print()
+    
     model = SSL(model_type=method,
                 encoder=encoder,
                 autoregressive=autoregressive,
@@ -142,72 +151,154 @@ if training_mode == "self_supervised":
                 static_use=static_use,
                 loss_params=loss_params,
                 lr=lr,
-                batch_size=batch_size,
-                criterion=loss_funcs[loss_func]
+                batch_size=batch_size
                 )
-    trained_model = train_ssl(
+    trained_model_path = train_ssl(
         train_loader=train_loader,
         model=model,
         checkpoint_dir=experiment_log_dir,
         gpus=device
         )
-
-
-if training_mode != "self_supervised":
-    # load saved model
-    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, method, f"self_supervised_seed_{SEED}_{data_type}", "saved_models"))
-    chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device)
-    encoder_pretrained_dict = chkpoint["encoder_model_state_dict"]
     
+    best_model = SSL.load_from_checkpoint(checkpoint_path=trained_model_path)
+
+    trained_encoder_state_dict = best_model.encoder.state_dict()
+    encoder.load_state_dict(trained_encoder_state_dict)
+
+    if static_use:
+        trained_static_encoder_state_dict = best_model.static_encoder.state_dict()
+        static_encoder.load_state_dict(trained_static_encoder_state_dict)
+
     if method == 'CPCHAR':
-        ar_pretrained_dict = chkpoint["ar_model_state_dict"]
+        trained_autoregressive_state_dict = best_model.autoregressive.state_dict()
+        autoregressive.load_state_dict(trained_autoregressive_state_dict)
     
-    static_encoder_model_state_dict = chkpoint["static_encoder_model_state_dict"]
-    model_dict = encoder.state_dict()
-    # del_list = ['logits']
+    print()
+    print('-' * 20)
+    print(f"Start Fine Tuning")
+    print('-' * 20)
+    print()
 
-    if training_mode == 'fine_tune':
-        # pretrained_dict_copy = encoder_pretrained_dict.copy()
-        # for i in pretrained_dict_copy.keys():
-        #     for j in del_list:
-        #         if j in i:
-        #             del encoder_pretrained_dict[i]
-        model_dict.update(encoder_pretrained_dict)
-        encoder.load_state_dict(model_dict)
-        static_encoder.load_state_dict(static_encoder_model_state_dict)
+    train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
+                                                             aug_params,
+                                                             data_type, aug_method1, aug_method2, batch_size,
+                                                             training_mode='fine_tune',
+                                                             use_sampler=sampler_use)
+    if method != 'CPCHAR':
+        finetune_model = DownstreamTask(
+            model_type=method,
+            training_mode='fine_tune',
+            encoder=encoder,
+            static_encoder=static_encoder,
+            logits=logit,
+            static_use=static_use,
+            criterion=loss_funcs[loss_func],
+            lr=lr
+        )
+    else:
+        finetune_model = DownstreamTask(
+            model_type=method,
+            training_mode='fine_tune',
+            encoder=encoder,
+            static_encoder=static_encoder,
+            logits=logit,
+            autoregressive=autoregressive,
+            static_use=static_use,
+            criterion=loss_funcs[loss_func],
+            lr=lr
+        )
+    fine_tune_results, lables, acc, precision, recall, f1 = train_downstream_task(
+                                                                train_loader=train_loader,
+                                                                valid_loader=valid_loader,
+                                                                test_loader=test_loader,
+                                                                model=finetune_model,
+                                                                gpus=device,
+                                                                checkpoint_dir=experiment_log_dir,
+                                                                training_mode='fine_tune'
+    )
+    print(f"Fine Tune Accuracy     : {acc:0.4f} \n Fine Tune F1     : {f1:0.4f} \n "
+          f"Fine Tune Precision     : {precision:0.4f} \n Fine Tune Recall     : {recall:0.4f}")
+    
+    print()
+    print('-' * 20)
+    print(f"Start Train Linear")
+    print('-' * 20)
+    print()
 
-    if training_mode == 'train_linear':
-        # pretrained_dict = {k: v for k, v in encoder_pretrained_dict.items() if k in model_dict}
-        # pretrained_dict_copy = pretrained_dict.copy()
-        # for i in pretrained_dict_copy.keys():
-        #     for j in del_list:
-        #         if j in i:
-        #             del pretrained_dict[i]
-        model_dict.update(encoder_pretrained_dict)
-        encoder.load_state_dict(model_dict)
-        
-        if method == 'CPCHAR':
-            autoregressive.load_state_dict(ar_pretrained_dict)
-            set_requires_grad(autoregressive, ar_pretrained_dict, requires_grad=False)
+    encoder.load_state_dict(trained_encoder_state_dict)
+    set_requires_grad(encoder, trained_encoder_state_dict, requires_grad=False)
 
-        static_encoder.load_state_dict(static_encoder_model_state_dict)
-        set_requires_grad(encoder, encoder_pretrained_dict, requires_grad=False)
+    if static_use:
+        static_encoder.load_state_dict(trained_static_encoder_state_dict)
+    if method == 'CPCHAR':
+        autoregressive.load_state_dict(trained_autoregressive_state_dict)
+        set_requires_grad(autoregressive, trained_autoregressive_state_dict, requires_grad=False)
 
-encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
+    train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
+                                                             aug_params,
+                                                             data_type, aug_method1, aug_method2, batch_size,
+                                                             training_mode='train_linear',
+                                                             use_sampler=sampler_use)
+    if method != 'CPCHAR':
+        finetune_model = DownstreamTask(
+            model_type=method,
+            training_mode='train_linear',
+            encoder=encoder,
+            static_encoder=static_encoder,
+            logits=logit,
+            static_use=static_use,
+            criterion=loss_funcs[loss_func],
+            lr=lr
+        )
+    else:
+        finetune_model = DownstreamTask(
+            model_type=method,
+            training_mode='train_linear',
+            encoder=encoder,
+            static_encoder=static_encoder,
+            logits=logit,
+            autoregressive=autoregressive,
+            static_use=static_use,
+            criterion=loss_funcs[loss_func],
+            lr=lr
+        )
+    train_linear_results, lables, acc, precision, recall, f1 = train_downstream_task(
+                                                                train_loader=train_loader,
+                                                                valid_loader=valid_loader,
+                                                                test_loader=test_loader,
+                                                                model=finetune_model,
+                                                                gpus=device,
+                                                                checkpoint_dir=experiment_log_dir,
+                                                                training_mode='train_linear'
+    )
+    print(f"Train Linear Accuracy     : {acc:0.4f} \n Train Linear F1     : {f1:0.4f} \n "
+          f"Train Linear Precision     : {precision:0.4f} \n Train Linear Recall     : {recall:0.4f}")
 
-logit_optimizer = torch.optim.Adam(logit.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
-
-ar_optimizer = torch.optim.Adam(autoregressive.parameters(), lr=lr, betas=(model_params['beta1'], model_params['beta2']), weight_decay=3e-4)
-static_encoder_optimizer = torch.optim.Adam(static_encoder.parameters(), lr=lr)
-
-
-Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
-        static_encoder_optimizer, train_loader, valid_loader, test_loader, device, loss_params,
-        loss_funcs[loss_func], experiment_log_dir, training_mode, batch_size, static_use=static_use)
-
-if training_mode != "self_supervised":
-    outs = model_evaluate(encoder, logit, autoregressive, static_encoder, method, test_loader, device,
-                          training_mode, loss_funcs[loss_func], static_use)
-    total_loss, total_acc, pred_labels, true_labels, _, _, _ = outs
-    _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
+if training_mode == 'supervised':
+    train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
+                                                             aug_params,
+                                                             data_type, aug_method1, aug_method2, batch_size,
+                                                             training_mode='supervised',
+                                                             use_sampler=sampler_use)
+    model = Supervised(
+        model_type=method,
+        encoder=encoder,
+        static_encoder=static_encoder,
+        logits=logit,
+        static_use=static_use,
+        criterion=loss_funcs[loss_func],
+        lr=lr
+    )
+    supervised_results, lables, acc, precision, recall, f1 = train_downstream_task(
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        test_loader=test_loader,
+        model=model,
+        gpus=device,
+        checkpoint_dir=experiment_log_dir,
+        training_mode='supervised'
+    )
+    print(
+        f"Supervised Accuracy     : {acc:0.4f} \n Supervised F1     : {f1:0.4f} \n "
+        f"Supervised Precision     : {precision:0.4f} \n Supervised Recall     : {recall:0.4f}")
 print(f"Training time is: {datetime.now() - start_time}")
