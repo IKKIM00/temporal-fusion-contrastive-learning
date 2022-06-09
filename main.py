@@ -72,9 +72,6 @@ os.makedirs(experiment_log_dir, exist_ok=True)
 counter = 0
 src_counter = 0
 
-# Logging
-# log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
-#  = _(log_file_name)
 print("=" * 45)
 print(f'Dataset: {data_type}')
 print(f'Method:  {method}')
@@ -145,12 +142,14 @@ if training_mode == "self_supervised":
                 batch_size=batch_size,
                 criterion=loss_funcs[loss_func]
                 )
-    trained_model = train_ssl(
+    trained_model_path = train_ssl(
         train_loader=train_loader,
         model=model,
         checkpoint_dir=experiment_log_dir,
         gpus=device
         )
+    
+    model = SSL.load_from_checkpoint(checkpoint_path=trained_model_path)
 
 
 if training_mode != "self_supervised":
