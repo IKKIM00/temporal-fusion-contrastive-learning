@@ -18,8 +18,13 @@ from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
 from models.static import StaticEncoder
 from data_formatters.configs import ExperimentConfig
 
+# +
 import warnings
 warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+
+import logging
+logging.getLogger("lightning").setLevel(logging.WARNING)
+# -
 
 start_time = datetime.now()
 
@@ -132,6 +137,13 @@ lr = loss_params['lr']
 
 if training_mode == "self_supervised":
     copy_Files(os.path.join(logs_save_dir, experiment_description, method), data_type)
+    
+    print()
+    print('-' * 20)
+    print("Start Self-Supervised Learning")
+    print('-' * 20)
+    print()
+    
     model = SSL(model_type=method,
                 encoder=encoder,
                 autoregressive=autoregressive,
@@ -160,8 +172,12 @@ if training_mode == "self_supervised":
     if method == 'CPCHAR':
         trained_autoregressive_state_dict = best_model.autoregressive.state_dict()
         autoregressive.load_state_dict(trained_autoregressive_state_dict)
-
+    
+    print()
+    print('-' * 20)
     print(f"Start Fine Tuning")
+    print('-' * 20)
+    print()
 
     train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
                                                              aug_params,
@@ -191,15 +207,22 @@ if training_mode == "self_supervised":
             criterion=loss_funcs[loss_func],
             lr=lr
         )
-    fine_tune_result = train_downstream_task(
-        train_loader=train_loader,
-        valid_loader=valid_loader,
-        test_loader=test_loader,
-        model=finetune_model,
-        gpus=device,
-        checkpoint_dir=experiment_log_dir,
-        training_mode='fine_tune'
+    fine_tune_results, lables, acc, precision, recall, f1 = train_downstream_task(
+                                                                train_loader=train_loader,
+                                                                valid_loader=valid_loader,
+                                                                test_loader=test_loader,
+                                                                model=finetune_model,
+                                                                gpus=device,
+                                                                checkpoint_dir=experiment_log_dir,
+                                                                training_mode='fine_tune'
     )
+    print(f"Test Accuracy     : {acc:0.4f} \n Test F1     : {f1:0.4f} \n Test Precision     : {precision:0.4f} \n Test Recall     : {recall:0.4f}")
+    
+    print()
+    print('-' * 20)
+    print(f"Start Train Linear")
+    print('-' * 20)
+    print()
 
 
 

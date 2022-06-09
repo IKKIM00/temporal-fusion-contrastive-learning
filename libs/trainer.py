@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 import torch
 import torch.nn.functional as F
@@ -136,11 +136,8 @@ class DownstreamTask(pl.LightningModule):
             static_encoder_optim = torch.optim.Adam(self.static_encoder.parameters(), lr=self.lr)
             optim_list.append(static_encoder_optim)
         return optim_list
-
-    def _forward(self, batch, mode='train'):
-        obs_real, labels, aug1, aug2, static = batch
-        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
-
+    
+    def forward(self, obs_real, static=None):
         if self.static_use and self.model_type == 'TFCL':
             static_context_variable, static_context_enrichment = self.static_encoder(static)
             output = self.encoder(obs_real, static_context_enrichment)
@@ -150,6 +147,12 @@ class DownstreamTask(pl.LightningModule):
             output = self.encoder
             cpc_loss, output = self.autoregressive(output)
         output = self.logits(output)
+        return output
+
+    def _forward(self, batch, mode='train'):
+        obs_real, labels, aug1, aug2, static = batch
+        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
+        output = self.forward(obs_real, static)
 
         loss = self.criterion(output, labels)
         acc = labels.eq(output.detach().argmax(dim=1)).float().mean()
@@ -160,15 +163,20 @@ class DownstreamTask(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         loss, acc = self._forward(batch, mode='train')
-        return loss, acc
+        return {'loss': loss, 'acc': acc}
 
-    def validation_step(self, batch, batch_idx, optimizer_idx):
+    def validation_step(self, batch, batch_idx):
         loss, acc = self._forward(batch, mode='val')
         return loss, acc
 
-    def test_step(self, batch, batch_idx, optimizer_idx):
+    def test_step(self, batch, batch_idx):
         loss, acc = self._forward(batch, mode='test')
         return loss, acc
+    
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        obs_real, labels, aug1, aug2, static = batch
+        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
+        return self(obs_real, static).argmax(dim=1), labels
 
 
 def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=True):
@@ -208,7 +216,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=T
 
 
 def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, training_mode, gpus,
-                          max_epochs=500):
+                          max_epochs=1):
     checkpoint_callback = ModelCheckpoint(
                                 dirpath=checkpoint_dir,
                                 filename=f"{training_mode}_ckpt",
@@ -235,10 +243,21 @@ def train_downstream_task(train_loader, valid_loader, test_loader, model, checkp
                 train_dataloaders=train_loader,
                 val_dataloaders=valid_loader)
     best_model = DownstreamTask.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
-    test_result = trainer.predict(model=best_model,
-                                  dataloaders=test_loader,
-                                  return_predictions=True)
-    return test_result
+    results = trainer.predict(model=best_model,
+                              dataloaders=test_loader,
+                              return_predictions=True)
+    
+    results = list(results)
+    trgs, outs = [], []
+    for out, trg in results:
+        trgs.extend(trg.detach().cpu().numpy())
+        outs.extend(out.detach().cpu().numpy())
+    
+    acc = accuracy_score(trgs, outs)
+    precision = precision_score(trgs, outs, average='macro')
+    recall = recall_score(trgs, outs, average='macro')
+    f1 = f1_score(trgs, outs, average='macro')
+    return trgs, outs, acc, precision, recall, f1
 
 
 def Trainer(encoder, logit, autoregressive, static_encoder, method, encoder_optimizer, logit_optimizer, ar_optimizer,
