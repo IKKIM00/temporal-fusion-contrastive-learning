@@ -260,6 +260,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart
             strategy='dp',
             devices=gpus,
             max_epochs=max_epochs,
+            num_nodes=4,
             callbacks=[checkpoint_callback]
         )
     else:
@@ -268,6 +269,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart
             accelerator='gpu',
             strategy='dp',
             devices=gpus,
+            num_nodes=4,
             max_epochs=max_epochs,
             callbacks=[checkpoint_callback],
             resume_from_checkpoint=pretrained_filename
@@ -299,6 +301,7 @@ def train_downstream_task(train_loader, valid_loader, test_loader, model, checkp
         accelerator='gpu',
         strategy='dp',
         devices=gpus,
+        num_nodes=4,
         max_epochs=max_epochs,
         callbacks=[checkpoint_callback, earlystop_callback]
     )

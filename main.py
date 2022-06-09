@@ -70,7 +70,7 @@ np.random.seed(SEED)
 logs_save_dir = args.logs_save_dir
 os.makedirs(logs_save_dir, exist_ok=True)
 
-experiment_log_dir = os.path.join(logs_save_dir, experiment_description, method, training_mode + f"_seed_{SEED}_{data_type}_aug1_{aug_method1}_aug2_{aug_method2}")
+experiment_log_dir = os.path.join(logs_save_dir, method, experiment_description, training_mode + f"_seed_{SEED}_{data_type}_aug1_{aug_method1}_aug2_{aug_method2}")
 os.makedirs(experiment_log_dir, exist_ok=True)
 
 # loop through domains
