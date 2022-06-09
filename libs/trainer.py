@@ -179,7 +179,70 @@ class DownstreamTask(pl.LightningModule):
         return self(obs_real, static).argmax(dim=1), labels
 
 
-def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=True):
+class Supervised(pl.LightningModule):
+    def __init__(self, model_type, encoder, static_encoder, logits, static_use, criterion, lr):
+        super(Supervised, self).__init__()
+        self.save_hyperparameters()
+
+        self.static_use = static_use
+        self.criterion = criterion
+        self.lr = lr
+
+        self.model_type = model_type
+        self.encoder = encoder
+        if self.static_use:
+            self.static_encoder = static_encoder
+        self.logits = logits
+
+    def configure_optimizers(self):
+        encoder_optim = torch.optim.Adam(self.encoder.parameters(), lr=self.lr)
+        logits_optim = torch.optim.Adam(self.logits.parameters(), lr=self.lr)
+        optim_list = [encoder_optim, logits_optim]
+        if self.static_use:
+            static_encoder_optim = torch.optim.Adam(self.static_encoder.parameters(), lr=self.lr)
+            optim_list.append(static_encoder_optim)
+        return optim_list
+
+    def forward(self, obs_real, static=None):
+        if self.static_use and self.model_type == 'TFCL':
+            static_context_variable, static_context_enrichment = self.static_encoder(static)
+            output = self.encoder(obs_real, static_context_enrichment)
+        elif self.model_type in ['TFCL', 'SimclrHAR', 'CSSHAR']:
+            output = self.encoder(obs_real)
+        output = self.logits(output)
+        return output
+
+    def _forward(self, batch, mode='train'):
+        obs_real, labels, aug1, aug2, static = batch
+        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
+        output = self.forward(obs_real, static)
+
+        loss = self.criterion(output, labels)
+        acc = labels.eq(output.detach().argmax(dim=1)).float().mean()
+
+        self.log(f"{mode}_loss", loss.item())
+        self.log(f"{mode}_acc", acc)
+        return loss, acc
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        loss, acc = self._forward(batch, mode='train')
+        return {'loss': loss, 'acc': acc}
+
+    def validation_step(self, batch, batch_idx):
+        loss, acc = self._forward(batch, mode='val')
+        return loss, acc
+
+    def test_step(self, batch, batch_idx):
+        loss, acc = self._forward(batch, mode='test')
+        return loss, acc
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        obs_real, labels, aug1, aug2, static = batch
+        obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()
+        return self(obs_real, static).argmax(dim=1), labels
+
+
+def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart=True):
     checkpoint_callback = ModelCheckpoint(
                 dirpath=os.path.join(checkpoint_dir, "saved_models"),
                 filename='ckp_last',
@@ -216,7 +279,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=T
 
 
 def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, training_mode, gpus,
-                          max_epochs=1):
+                          max_epochs=300):
     checkpoint_callback = ModelCheckpoint(
                                 dirpath=checkpoint_dir,
                                 filename=f"{training_mode}_ckpt",
@@ -362,12 +425,12 @@ def model_train(logger, encoder, logit, autoregressive, static_encoder, method, 
                 features2 = encoder(aug2, static_context_variable)
 
             elif method in ["TFCL", "SimclrHAR", "CSSHAR"]:
-                
+
                 features1 = encoder(aug1)
                 features2 = encoder(aug2)
-            
+
             else: # CPCHAR
-                
+
                 feature = encoder(observed_real)
 
             if method == "TFCL":
@@ -394,7 +457,7 @@ def model_train(logger, encoder, logit, autoregressive, static_encoder, method, 
             else: # CPCHAR
 
                 nce, c_t = autoregressive(feature)
-                
+
 
         else: # Train Linear or Fine-tune
 
@@ -412,7 +475,7 @@ def model_train(logger, encoder, logit, autoregressive, static_encoder, method, 
                 output = logit(out)
 
         params = dict(loss_params)
-        
+
         if method != 'CPCHAR':
             nt_xent_criterion = NTXentLoss(device, batch_size, float(params['temperature']),
                                        bool(params['use_cosine_similarity']))
