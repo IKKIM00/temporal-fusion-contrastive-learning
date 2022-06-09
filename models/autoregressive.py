@@ -43,14 +43,17 @@ class BaseAR(nn.Module):
                                                heads=4, mlp_dim=64)
         self.static_use = static_use
         if self.static_use:
-            self.seq_len = 699 + 1
-#             self.seq_len = int(params["static_feature_len"]) + 1
-            self.grn_list = nn.ModuleList()
-            for i in range(self.seq_len):
-                grn = gated_residual_network(input_dim=self.output_dim,
-                                             hidden_dim=self.output_dim,
-                                             additional_context=True)
-                self.grn_list.append(grn)
+            self.grn = gated_residual_network(input_dim=self.output_dim,
+                                              hidden_dim=self.output_dim,
+                                              additional_context=True)
+#             self.seq_len = 699 + 1
+# #             self.seq_len = int(params["static_feature_len"]) + 1
+#             self.grn_list = nn.ModuleList()
+#             for i in range(self.seq_len):
+#                 grn = gated_residual_network(input_dim=self.output_dim,
+#                                              hidden_dim=self.output_dim,
+#                                              additional_context=True)
+#                 self.grn_list.append(grn)
 
     def forward(self, feature_aug1, feature_aug2, static_info=None):
         seq_len = feature_aug1.shape[2]
@@ -59,7 +62,7 @@ class BaseAR(nn.Module):
             enriched_feature_augs1 = torch.empty(feature_aug1.shape).float()
 
             for i in range(seq_len):
-                enriched_feature_augs1[:, :, i] = self.grn_list[i](feature_aug1[:, :, i], static_info)
+                enriched_feature_augs1[:, :, i] = self.grn(feature_aug1[:, :, i], static_info)
             feature_aug1 = enriched_feature_augs1
 
         z_aug1 = feature_aug1  # (batch_size, channels, seq_len)
