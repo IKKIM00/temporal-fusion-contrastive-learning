@@ -76,8 +76,8 @@ class SSL(pl.LightningModule):
             features2 = F.normalize(features2, dim=1)
 
         if self.static_use:
-            features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2)
-            features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2)
+            features1 = torch.cat([features1, static_context_enrichment.unsqueeze(-1)], dim=2).to(features1.device)
+            features2 = torch.cat([features2, static_context_enrichment.unsqueeze(-1)], dim=2).to(features2.device)
 
         if self.model_type == 'TFCL':
             pred_cont_loss1, temp_cont_feat1 = self.autoregressive(features1, features2)
@@ -128,9 +128,8 @@ class DownstreamTask(pl.LightningModule):
         logits_optim = torch.optim.Adam(self.logits.parameters(), lr=self.lr)
         optim_list = [logits_optim]
 
-        if self.training_mode == 'fine_tune':
-            encoder_optim = torch.optim.Adam(self.encoder.parameters(), lr=self.lr)
-            optim_list.append(encoder_optim)
+        encoder_optim = torch.optim.Adam(self.encoder.parameters(), lr=self.lr)
+        optim_list.append(encoder_optim)
 
         if self.static_use:
             static_encoder_optim = torch.optim.Adam(self.static_encoder.parameters(), lr=self.lr)
@@ -172,7 +171,7 @@ class DownstreamTask(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         loss, acc = self._forward(batch, mode='test')
         return loss, acc
-    
+
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         obs_real, labels, aug1, aug2, static = batch
         obs_real, aug1, aug2, labels = obs_real.float(), aug1.float(), aug2.float(), labels.long()

@@ -46,14 +46,6 @@ class BaseAR(nn.Module):
             self.grn = gated_residual_network(input_dim=self.output_dim,
                                               hidden_dim=self.output_dim,
                                               additional_context=True)
-#             self.seq_len = 699 + 1
-# #             self.seq_len = int(params["static_feature_len"]) + 1
-#             self.grn_list = nn.ModuleList()
-#             for i in range(self.seq_len):
-#                 grn = gated_residual_network(input_dim=self.output_dim,
-#                                              hidden_dim=self.output_dim,
-#                                              additional_context=True)
-#                 self.grn_list.append(grn)
 
     def forward(self, feature_aug1, feature_aug2, static_info=None):
         seq_len = feature_aug1.shape[2]
@@ -63,7 +55,7 @@ class BaseAR(nn.Module):
 
             for i in range(seq_len):
                 enriched_feature_augs1[:, :, i] = self.grn(feature_aug1[:, :, i], static_info)
-            feature_aug1 = enriched_feature_augs1
+            feature_aug1 = enriched_feature_augs1.to(feature_aug1.device)
 
         z_aug1 = feature_aug1  # (batch_size, channels, seq_len)
         z_aug1 = torch.permute(z_aug1, (0, 2, 1)).contiguous()
