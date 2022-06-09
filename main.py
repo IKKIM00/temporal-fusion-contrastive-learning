@@ -11,7 +11,7 @@ from libs.utils import set_requires_grad
 from libs.utils import _calc_metrics, copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
-from libs.trainer import SSL, train_ssl, Trainer, model_evaluate
+from libs.trainer import SSL, train_ssl, DownstreamTask, train_downstream_task, Trainer, model_evaluate
 from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
 from models.logit import BaseLogit, SimclrLogit, CSSHARLogit, CPCHARLogit
 from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
@@ -153,14 +153,53 @@ if training_mode == "self_supervised":
     trained_encoder_state_dict = best_model.encoder.state_dict()
     encoder.load_state_dict(trained_encoder_state_dict)
 
-    trained_static_encoder_state_dict = best_model.static_encoder.state_dict()
-    static_encoder.load_state_dict(trained_static_encoder_state_dict)
+    if static_use:
+        trained_static_encoder_state_dict = best_model.static_encoder.state_dict()
+        static_encoder.load_state_dict(trained_static_encoder_state_dict)
 
     if method == 'CPCHAR':
         trained_autoregressive_state_dict = best_model.autoregressive.state_dict()
         autoregressive.load_state_dict(trained_autoregressive_state_dict)
 
     print(f"Start Fine Tuning")
+
+    train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test,
+                                                             aug_params,
+                                                             data_type, aug_method1, aug_method2, batch_size,
+                                                             training_mode='fine_tune',
+                                                             use_sampler=sampler_use)
+    if method != 'CPCHAR':
+        finetune_model = DownstreamTask(
+            model_type=method,
+            training_mode='fine_tune',
+            encoder=encoder,
+            static_encoder=static_encoder,
+            logits=logit,
+            static_use=static_use,
+            criterion=loss_funcs[loss_func],
+            lr=lr
+        )
+    else:
+        finetune_model = DownstreamTask(
+            model_type=method,
+            training_mode='fine_tune',
+            encoder=encoder,
+            static_encoder=static_encoder,
+            logits=logit,
+            autoregressive=autoregressive,
+            static_use=static_use,
+            criterion=loss_funcs[loss_func],
+            lr=lr
+        )
+    fine_tune_result = train_downstream_task(
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        test_loader=test_loader,
+        model=finetune_model,
+        gpus=device,
+        checkpoint_dir=experiment_log_dir,
+        training_mode='fine_tune'
+    )
 
 
 
