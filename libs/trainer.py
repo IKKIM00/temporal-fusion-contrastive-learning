@@ -91,8 +91,8 @@ class SSL(pl.LightningModule):
             
             loss = lambda1 * (pred_cont_loss1 + pred_cont_loss2) + lambda2 * nt_xent_criterion(zis, zjs)
         elif self.model_type in ['SimclrHAR', 'CSSHAR']:
-            projection1 = self.auto_regressive(features1)
-            projection2 = self.auto_regressive(features2)
+            projection1 = self.autoregressive(features1)
+            projection2 = self.autoregressive(features2)
 
             loss = nt_xent_criterion(projection1, projection2)
         elif self.model_type == 'CPCHAR':
