@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import torch
 import torch.nn as nn
 
@@ -103,4 +104,4 @@ class CPCHARLogit(nn.Module):
         c_t = c_t[:, self.timestep,:]
         out = self.logits(c_t)
 
-        return 
+        return out
