@@ -11,7 +11,7 @@ from libs.utils import set_requires_grad
 from libs.utils import copy_Files
 from models.loss import FocalLoss
 from libs.dataloader import data_generator
-from libs.trainer import SSL, train_ssl, DownstreamTask, train_downstream_task, Supervised
+from libs.trainer import SSL, train_ssl, FineTune, TrainLinear, train_downstream_task, Supervised
 from models.autoregressive import BaseAR, SimclrHARAR, CSSHARAR, CPCHARAR
 from models.logit import BaseLogit, SimclrLogit, CSSHARLogit, CPCHARLogit
 from models.encoder import BaseEncoder, SimclrHAREncoder, CSSHAREncoder, CPCHAR
@@ -185,7 +185,7 @@ if training_mode == "self_supervised":
                                                              training_mode='fine_tune',
                                                              use_sampler=sampler_use)
     if method != 'CPCHAR':
-        finetune_model = DownstreamTask(
+        finetune_model = FineTune(
             model_type=method,
             training_mode='fine_tune',
             encoder=encoder,
@@ -196,7 +196,7 @@ if training_mode == "self_supervised":
             lr=lr
         )
     else:
-        finetune_model = DownstreamTask(
+        finetune_model = FineTune(
             model_type=method,
             training_mode='fine_tune',
             encoder=encoder,
@@ -240,7 +240,7 @@ if training_mode == "self_supervised":
                                                              training_mode='train_linear',
                                                              use_sampler=sampler_use)
     if method != 'CPCHAR':
-        finetune_model = DownstreamTask(
+        finetune_model = TrainLinear(
             model_type=method,
             training_mode='train_linear',
             encoder=encoder,
@@ -251,7 +251,7 @@ if training_mode == "self_supervised":
             lr=lr
         )
     else:
-        finetune_model = DownstreamTask(
+        finetune_model = TrainLinear(
             model_type=method,
             training_mode='train_linear',
             encoder=encoder,
