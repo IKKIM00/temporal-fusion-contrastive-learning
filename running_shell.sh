@@ -28,7 +28,7 @@ if [ $3 == 'self_supervised' ]; then
     done
   done
 else
-  mkdir -p log/$1/$2/$3/
+  mkdir -p log/$1/$2/$3/$4/
   python main.py --model_type $1 --experiment_description $1_$2_$3_$4 --no-sampler_use\
- --dataset $2 --device $5 --training_mode $3 --loss_func 'focal' | tee log/$1/$2/$3/log.txt
+ --dataset $2 --device $5 --training_mode $3 --loss_func 'focal' | tee log/$1/$2/$3/$4/log.txt
 fi
