@@ -10,7 +10,7 @@ How to use (in Terminal):
 bash runnning_shell.sh TFCL mobiact self_supervised static_use 2,3
 
 $1 : model ( TFCL, SimclrHAR, CSSHAR, CPCHAR )
-$2 : static_use  ( static_use, no_static_use )
+$2 : static_use  ( yes, no )
 $3 : device ( 2,3 or 0,1,2,3 ... )
 
 END
