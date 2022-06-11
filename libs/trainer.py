@@ -96,7 +96,7 @@ class SSL(pl.LightningModule):
 
             loss = nt_xent_criterion(projection1, projection2)
         elif self.model_type == 'CPCHAR':
-            loss, c_t = self.auto_regressive(feature)
+            loss, c_t = self.autoregressive(feature)
 
         self.log(f"{mode}_loss", loss.item())
         return loss
@@ -131,7 +131,7 @@ class FineTune(pl.LightningModule):
         elif self.model_type in ['TFCL', 'SimclrHAR', 'CSSHAR']:
             output = self.encoder(obs_real)
         elif self.model_type == 'CPCHAR':
-            output = self.encoder
+            output = self.encoder(obs_real)
             cpc_loss, output = self.autoregressive(output)
         output = self.logits(output)
         return output
@@ -199,7 +199,7 @@ class TrainLinear(pl.LightningModule):
         elif self.model_type in ['TFCL', 'SimclrHAR', 'CSSHAR']:
             output = self.encoder(obs_real)
         elif self.model_type == 'CPCHAR':
-            output = self.encoder
+            output = self.encoder(obs_real)
             cpc_loss, output = self.autoregressive(output)
         output = self.logits(output)
         return output

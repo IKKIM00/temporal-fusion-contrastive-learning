@@ -140,7 +140,7 @@ class CPCHARAR(nn.Module):
         forward_seq = forward_seq.permute(1,0,2).contiguous()
         batch = feature_aug1.shape[0]
         c_t, h_n = self.gru(feature_aug1[:, : self.timestep + 1, :])  # b, seq_len, 2 * c
-        pred = torch.empty((self.timestep, batch, 128)).float()
+        pred = torch.empty((self.timestep, batch, 128)).float().to(feature_aug1.device)
         c_t = c_t.permute(0, 2, 1).contiguous()
 #         print("shape : ", c_t.shape)
         for i in np.arange(0, self.timestep):
