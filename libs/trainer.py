@@ -368,7 +368,7 @@ def train_downstream_task(train_loader, valid_loader, test_loader, model, checkp
     elif training_mode == 'train_linear':
         best_model = TrainLinear.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
     elif training_mode == 'supervised':
-        best_model = model
+        best_model = Supervised.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
     results = trainer.predict(model=best_model,
                               dataloaders=test_loader,
                               return_predictions=True)
