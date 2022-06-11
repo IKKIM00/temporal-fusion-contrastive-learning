@@ -1,4 +1,4 @@
-training_mode="self_supervised supervised"
+training_mode="self_supervised"
 dataset="mobiact dlr"
 
 : << "END"
