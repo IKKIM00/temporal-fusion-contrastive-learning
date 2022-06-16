@@ -297,7 +297,7 @@ class Supervised(pl.LightningModule):
         return self(obs_real, static).argmax(dim=1), labels
 
 
-def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=True):
+def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=300, restart=True):
     checkpoint_callback = ModelCheckpoint(
                 dirpath=os.path.join(checkpoint_dir, "saved_models"),
                 filename='ckp_last',
@@ -336,7 +336,7 @@ def train_ssl(train_loader, model, checkpoint_dir, gpus, max_epochs=1, restart=T
 
 
 def train_downstream_task(train_loader, valid_loader, test_loader, model, checkpoint_dir, training_mode, gpus,
-                          max_epochs=1):
+                          max_epochs=300):
     checkpoint_callback = ModelCheckpoint(
                                 dirpath=checkpoint_dir,
                                 filename=f"{training_mode}_ckpt",
