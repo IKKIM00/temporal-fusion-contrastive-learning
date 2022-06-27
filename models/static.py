@@ -7,11 +7,11 @@ from models.grn import gated_residual_network
 
 
 class StaticEncoder(nn.Module):
-    def __init__(self, model_params, device):
+    def __init__(self, model_params):
         super(StaticEncoder, self).__init__()
 
-        self.static_embedding = StaticEmbedding(model_params, device)
-        self.static_variable_selection = StaticVariableSelection(model_params, device)
+        self.static_embedding = StaticEmbedding(model_params)
+        self.static_variable_selection = StaticVariableSelection(model_params)
 
     def forward(self, static_input):
         static_embedding = self.static_embedding(static_input)
@@ -28,7 +28,7 @@ class StaticEmbedding(nn.Module):
     :returns
         static_inputs: transformed inputs
     """
-    def __init__(self, model_params, device):
+    def __init__(self, model_params):
         super(StaticEmbedding, self).__init__()
 
         params = dict(model_params)
@@ -38,8 +38,6 @@ class StaticEmbedding(nn.Module):
         self.category_counts = json.loads(str(params['category_counts']))   # 각 categorical value들의 category 종류 개수
         self._static_regular_inputs = json.loads(str(params['static_regular_inputs']))
         self._static_categorical_inputs = json.loads(str(params['static_categorical_inputs']))
-        self.device = device
-
         self.num_categorical_variables = len(self._static_categorical_inputs)
         self.num_regular_variables = len(self._static_regular_inputs)
 
@@ -51,12 +49,12 @@ class StaticEmbedding(nn.Module):
         for i in range(self.num_categorical_variables):
             embedding = nn.Embedding(
                 num_embeddings=self.category_counts[i],
-                embedding_dim=embedding_sizes[i]).to(device)
+                embedding_dim=embedding_sizes[i])
             self.embeddings.append(embedding)
 
         self.emb_regulars = nn.ModuleList()
         for i in range(self.num_regular_variables):
-            emb_reg = nn.Linear(1, self.output_dim).to(device)
+            emb_reg = nn.Linear(1, self.output_dim)
             self.emb_regulars.append(emb_reg)
 
     def forward(self, all_inputs):
@@ -79,14 +77,13 @@ class StaticEmbedding(nn.Module):
 
 
 class StaticVariableSelection(nn.Module):
-    def __init__(self, model_params, device):
+    def __init__(self, model_params):
         super(StaticVariableSelection, self).__init__()
 
         self.input_size = len(json.loads(str(model_params['static_regular_inputs']))) + len(json.loads(str(model_params['static_categorical_inputs'])))
         self.output_dim = int(model_params['encoder_output_dim'])
         self.dropout = float(model_params['dropout'])
         self.feature_len = int(model_params['feature_len'])
-        self.device = device
 
         self.flatten = nn.Flatten()
         self.trans_emb_grn = nn.ModuleList()
