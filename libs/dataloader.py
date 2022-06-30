@@ -85,7 +85,7 @@ def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_param
                                                    shuffle=True,
                                                    sampler=RandomSampler(data_source=train_dataset,
                                                                          replacement=True,
-                                                                         num_samples=ratio * len(train_dataset)),
+                                                                         num_samples=int(ratio * len(train_dataset))),
                                                    drop_last=True,
                                                    num_workers=10,
                                                    pin_memory=True)
