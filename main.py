@@ -41,6 +41,7 @@ parser.add_argument('--aug_method1', default='jitter_scale', type=str)
 parser.add_argument('--aug_method2', default='permutation_jitter', type=str)
 parser.add_argument('--static_use', action=argparse.BooleanOptionalAction)
 parser.add_argument('--sampler_use', action=argparse.BooleanOptionalAction)
+parser.add_argument('--sampler_ratio', default=1, type=float)
 parser.add_argument('--dataset', default='mobiact', type=str)
 parser.add_argument('--logs_save_dir', default='experiments_logs', type=str)
 parser.add_argument('--device', default='cpu', type=str)
@@ -58,6 +59,7 @@ aug_method1 = args.aug_method1
 aug_method2 = args.aug_method2
 static_use = args.static_use
 sampler_use = args.sampler_use
+sampler_ratio = args.sampler_ratio
 
 print(f"Args: {args}")
 
@@ -103,7 +105,7 @@ loss_params_df.to_csv(experiment_log_dir + '/loss_params.csv')
 
 train_loader, valid_loader, test_loader = data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params,
                                                          data_type, aug_method1, aug_method2, batch_size, training_mode,
-                                                         use_sampler=sampler_use)
+                                                         sampler_use=sampler_use, ratio=sampler_ratio)
 print("Data loaded ...")
 
 loss_funcs = {
@@ -183,7 +185,7 @@ if training_mode == "self_supervised":
                                                              aug_params,
                                                              data_type, aug_method1, aug_method2, batch_size,
                                                              training_mode='fine_tune',
-                                                             use_sampler=sampler_use)
+                                                             sampler_use=sampler_use, ratio=sampler_ratio)
     if method != 'CPCHAR':
         finetune_model = FineTune(
             model_type=method,
@@ -238,7 +240,7 @@ if training_mode == "self_supervised":
                                                              aug_params,
                                                              data_type, aug_method1, aug_method2, batch_size,
                                                              training_mode='train_linear',
-                                                             use_sampler=sampler_use)
+                                                             sampler_use=sampler_use, ratio=sampler_ratio)
     if method != 'CPCHAR':
         finetune_model = TrainLinear(
             model_type=method,
@@ -279,7 +281,7 @@ if training_mode == 'supervised':
                                                              aug_params,
                                                              data_type, aug_method1, aug_method2, batch_size,
                                                              training_mode='supervised',
-                                                             use_sampler=sampler_use)
+                                                             sampler_use=sampler_use, ratio=sampler_ratio)
     model = Supervised(
         model_type=method,
         encoder=encoder,

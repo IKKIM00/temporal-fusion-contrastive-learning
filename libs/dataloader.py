@@ -1,10 +1,10 @@
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset, RandomSampler
+
 import os
 import numpy as np
+
 from libs.augmentation import DataTransform
-from torchsampler import ImbalancedDatasetSampler
 
 
 class MobiActDataset(Dataset):
@@ -70,7 +70,7 @@ class DLRDataset(Dataset):
 
 
 def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_params, data_type,
-                   aug_method1, aug_method2, batch_size, training_mode, use_sampler=False):
+                   aug_method1, aug_method2, batch_size, training_mode, sampler_use=False, ratio=1):
 
     choose_dataset = {'mobiact': MobiActDataset,
                       'dlr': DLRDataset}
@@ -79,30 +79,33 @@ def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_param
     valid_dataset = choose_dataset[data_type](X_valid, y_valid, aug_method1, aug_method2, aug_params, training_mode)
     test_dataset = choose_dataset[data_type](X_test, y_test, aug_method1, aug_method2, aug_params, training_mode)
 
-    if use_sampler:
-        def get_y_label(dataset):
-            return dataset.y_data.view(-1)
+    if sampler_use:
         train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                    batch_size=batch_size,
-                                                   sampler=ImbalancedDatasetSampler(train_dataset,
-                                                                                    callback_get_label=get_y_label),
+                                                   shuffle=True,
+                                                   sampler=RandomSampler(data_source=train_dataset,
+                                                                         num_samples=ratio * len(train_dataset)),
                                                    drop_last=True,
-                                                   num_workers=10)
+                                                   num_workers=10,
+                                                   pin_memory=True)
     else:
         train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                    batch_size=batch_size,
                                                    shuffle=True,
                                                    drop_last=True,
-                                                   num_workers=10)
+                                                   num_workers=10,
+                                                   pin_memory=True)
     valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
                                                batch_size=batch_size // 4,
                                                drop_last=True,
                                                shuffle=False,
-                                               num_workers=10)
+                                               num_workers=10,
+                                               pin_memory=True)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                               batch_size=batch_size // 2,
                                               shuffle=False,
-                                              num_workers=10)
+                                              num_workers=10,
+                                              pin_memory=True)
 
     return train_loader, valid_loader, test_loader
 
