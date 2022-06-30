@@ -82,7 +82,7 @@ def data_generator(X_train, y_train, X_valid, y_valid, X_test, y_test, aug_param
     if sampler_use:
         train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                    batch_size=batch_size,
-                                                   shuffle=True,
+                                                   shuffle=False,
                                                    sampler=RandomSampler(data_source=train_dataset,
                                                                          replacement=True,
                                                                          num_samples=int(ratio * len(train_dataset))),
