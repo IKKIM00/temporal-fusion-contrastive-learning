@@ -7,18 +7,16 @@
 
 
 # TFCL (Temporal Fusion Contrastive Learning) 
-<hr>
+
 
 This repository is the official implementation of "**Human Activity Recognition via Temporal Fusion Contrastive Learning"** accepted in ``.
 
 
 # Model Architecture
-<hr>
 <img src='./images/tf_tcc.svg'>
 
 
 # Requirments
-<hr>
 
 - `python` == 3.9
 - `pytorch` == 1.10.1
@@ -28,7 +26,6 @@ This repository is the official implementation of "**Human Activity Recognition 
 
 # How to start
 
-<hr>
 
 ## 1. Preprocess dataset
 
@@ -68,7 +65,6 @@ This repository is the official implementation of "**Human Activity Recognition 
 ## 3. Training
 
 ### with static data + sampler
-<hr>
 
 `Terminal command`
 
@@ -83,7 +79,6 @@ python main.py --model_type TFCL --sampler_use --dataset mobiact --device 0,1 --
 ```
 
 ### with static data + no sampler
-<hr>
 
 `Terminal command`
 
@@ -98,7 +93,6 @@ python main.py --model_type TFCL --no-sampler_use --dataset mobiact --device 0,1
 ```
 
 ### without static data + sampler
-<hr>
 
 `Terminal command`
 
@@ -113,7 +107,6 @@ python main.py --model_type TFCL --sampler_use --no-static_use --dataset mobiact
 ```
 
 ### without static data + no sampler
-<hr>
 
 `Terminal command`
 
