@@ -5,11 +5,6 @@
 ![Lightning](https://img.shields.io/badge/-Lightning-purple?logo=pytorchlightning&logoColor=white)
 
 
-<!-- #endregion -->
-
-<!-- #region -->
-
-
 # TFCL (Temporal Fusion Contrastive Learning) 
 
 
