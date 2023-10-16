@@ -8,14 +8,14 @@
 # TFCL (Temporal Fusion Contrastive Learning) 
 
 
-This repository is the official implementation of "**Human Activity Recognition via Temporal Fusion Contrastive Learning"** accepted in ``.
+This repository is the official implementation of "**Human Activity Recognition via Temporal Fusion Contrastive Learning"** (under review).
 
 
 # Model Architecture
 <img src='./images/tf_tcc.svg'>
 
 
-# Requirments
+# Requirmentss
 
 - `python` == 3.9
 - `pytorch` == 1.10.1
@@ -44,7 +44,7 @@ This repository is the official implementation of "**Human Activity Recognition 
 
 > - `--experiment description` : set experiment description. Default : `Exp1`   
 > - `--seed`: seed value. Default: `42`
-> - `--model_type` : set model. Default : `TFCL`
+> - `--model_type` : set model. Default : `TFCL`, for baseline models: `SimclrHAR`, `CSSHAR`, `CPCHAR`
 > - `--training_mode`: choose training mode between `self_supervised`, `fine_tune`, `train_linear`, `supervised`. Default: `supervised`
 > - `--loss_func`: choose between `focal` and `cross_entropy`. Default: `cross_entropy`
 > - `--batch_size`: set batch_size. Default: `512`
@@ -57,7 +57,7 @@ This repository is the official implementation of "**Human Activity Recognition 
 > - `--device`: choose device. Default: `cpu`
 > - `--home_path`: home directory. Default: current directory
     
-    
+> For `aug_method1` and `aug_method2`, choose between `["jitter" "scale" "jitter_scale" "permutation" "permutation_jitter" "rotation" "invert" "timeflip" "shuffle" "warp"]`
     
     
 
