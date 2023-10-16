@@ -97,7 +97,7 @@ class StaticVariableSelection(nn.Module):
                                            output_dim=self.input_size,
                                            droupout_rate=self.dropout)
         self.static_context_enrichment = gated_residual_network(input_dim=self.output_dim,
-                                                        hidden_dim=self.output_dim)
+                                                                hidden_dim=self.output_dim)
         self.static_context_variable = gated_residual_network(input_dim=self.output_dim,
                                                               hidden_dim=self.output_dim)
         self.softmax = nn.Softmax(dim=1)
