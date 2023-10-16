@@ -1,5 +1,0 @@
-mkdir -p ./log/simclrhar/
-python main.py --run_description 'mobiact_simclrhar' --model_type 'SimclrHAR' --no-static_use --no-sampler_use --dataset 'mobiact' --device 'cuda:3' --training_mode 'self_supervised' --loss_func 'focal' | tee log/simclrhar/simclrhar_Nostatic_mobiact_self_supervised.txt
-python main.py --run_description 'mobiact_simclrhar' --model_type 'SimclrHAR' --no-static_use --no-sampler_use --dataset 'mobiact' --device 'cuda:3' --training_mode 'fine_tune' --loss_func 'focal' | tee log/simclrhar/simclrhar_Nostatic_mobiact_fine_tune.txt
-python main.py --run_description 'mobiact_simclrhar' --model_type 'SimclrHAR' --no-static_use --no-sampler_use --dataset 'mobiact' --device 'cuda:3' --training_mode 'train_linaer' --loss_func 'focal' | tee log/simclrhar/simclrhar_Nostatic_mobiact_train_linear.txt
-python main.py --run_description 'mobiact_simclrhar' --model_type 'SimclrHAR' --no-static_use --no-sampler_use --dataset 'mobiact' --device 'cuda:3' --training_mode 'supervised' --loss_func 'focal' | tee log/simclrhar/simclrhar_Nostatic_mobiact_supervised.txt
