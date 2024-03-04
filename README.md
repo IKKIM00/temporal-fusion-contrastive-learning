@@ -8,7 +8,7 @@
 # TFCL (Temporal Fusion Contrastive Learning) 
 
 
-This repository is the official implementation of "**Human Activity Recognition via Temporal Fusion Contrastive Learning"** (under review).
+This repository is the official implementation of "**Human Activity Recognition via Temporal Fusion Contrastive Learning"** [[paper](https://ieeexplore.ieee.org/abstract/document/10411909/)].
 
 
 # Model Architecture
